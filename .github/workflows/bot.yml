@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # para a corrida contínua lançar a seguinte
 
 concurrency:
   group: bot-resultados
@@ -43,6 +44,8 @@ jobs:
       - name: Correr o bot
         env:
           NTFY_TOPICO: ${{ secrets.NTFY_TOPICO }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           COMANDO: ${{ inputs.comando || (github.event.schedule == '37 9 * * 6' && 'auto') || 'continuo' }}
         run: |
           git config user.name "github-actions[bot]"
@@ -72,5 +75,13 @@ jobs:
             sleep "$SEGUNDOS_ENTRE_VERIFICACOES"
           done
           echo "Passagens: $total, com falhas: $falhas"
+
+          # Lança já a corrida seguinte (fica em fila e arranca quando esta acabar), para não depender
+          # do agendador do GitHub, que se atrasa. Só de seg a sex e sábado de madrugada (hora de Lisboa).
+          dia=$(TZ=Europe/Lisbon date +%u); hora=$(TZ=Europe/Lisbon date +%-H)
+          if [ "$dia" -le 5 ] || { [ "$dia" -eq 6 ] && [ "$hora" -lt 2 ]; }; then
+            gh workflow run bot.yml -f comando=continuo || echo "::warning::Não consegui lançar a corrida seguinte"
+          fi
+
           # só marca a corrida como falhada (e manda email) se mais de metade das passagens falhou
           [ $((falhas * 2)) -le $total ]
