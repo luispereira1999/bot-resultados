@@ -5,3 +5,4 @@ data/cotadas.json
 data/erros.log
 data/*.tmp
 .claude/
+data/sec_tickers.json

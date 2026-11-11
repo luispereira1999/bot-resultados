@@ -149,3 +149,25 @@ def test_teste_historico_resumo_e_filtros():
     assert s["alvo5_stop3"] == 1.0     # o segundo sai a -3
     assert backtest.stats(df.iloc[0:0]) == {"n": 0}
     assert len(backtest.select(df, None, None)) == 4
+
+
+def test_guidance_escolhe_frases_de_previsao_e_ignora_texto_juridico():
+    import guidance
+    page = """<html><body><p>Revenue was $1.2 billion in the third quarter of 2026, up 12% year over year.</p>
+    <p>For the fourth quarter of 2026, the company expects revenue of $1.30 billion to $1.35 billion.</p>
+    <p>The company raised its full-year 2026 guidance for adjusted EPS to $4.10&nbsp;to $4.20 from $3.90 to $4.00.</p>
+    <p>This release contains forward-looking statements; the company expects actual results may differ by 10% in 2026.</p>
+    <p>We expect great things.</p></body></html>"""
+    frases = guidance.extract(guidance.to_text(page))
+    assert len(frases) == 2
+    assert frases[0].startswith("For the fourth quarter of 2026") and "raised its full-year 2026 guidance" in frases[1]
+    assert "$4.10 to $4.20" in frases[1]
+
+
+def test_alerta_inclui_o_guidance_quando_existe():
+    r = {"simbolo": "XYZ", "nome": "XYZ Inc", "mercado": "NASDAQ", "momento": "AMC", "positivo": True,
+         "surpresa_pct": 10.0, "movimento_pct": 5.0, "movimento_tipo": "after-hours", "eps_real": 1.1, "eps_estimado": 1.0}
+    _, body = bot.alert_text(r, {"frases": ["Expects 2027 revenue of $5 billion."], "url": "https://x"})
+    assert "• Expects 2027 revenue of $5 billion." in body
+    assert "lê a secção" in bot.alert_text(r)[1]
+    assert bot.links(r, "https://x")[1][0]["url"] == "https://x"

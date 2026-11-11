@@ -399,14 +399,26 @@ def expectations(t: yf.Ticker) -> dict:
     return out
 
 
-def links(ev: dict) -> tuple[str, list[dict]]:
+def links(ev: dict, release_url: str | None = None) -> tuple[str, list[dict]]:
     sym = ev["simbolo"]
     yahoo = f"https://finance.yahoo.com/quote/{sym}/"
     acts = [{"label": "Yahoo", "url": yahoo}]
     if ev["mercado"] != "Euronext":
-        acts.insert(0, {"label": "Comunicado (SEC)",
-                        "url": f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={sym}&owner=include&count=10"})
+        acts.insert(0, {"label": "Comunicado (SEC)", "url": release_url or
+                        f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={sym}&owner=include&count=10"})
     return yahoo, acts
+
+
+def fetch_guidance(cfg: dict, ev: dict) -> dict | None:
+    """Frases de previsão do comunicado na SEC. Se algo falhar, o alerta sai sem elas."""
+    if not cfg.get("guidance_no_alerta") or not cfg.get("sec_user_agent") or ev["mercado"] == "Euronext":
+        return None
+    try:
+        import guidance
+        return guidance.guidance_for(ev["simbolo"], cfg["sec_user_agent"])
+    except Exception:
+        log_error(f"Guidance: falhou {ev['simbolo']}")
+        return None
 
 
 # ---------------------------------------------------------------- registo
@@ -498,7 +510,7 @@ def evaluate(cfg: dict, ev: dict) -> dict:
             "bateu_mas_cai": beat and not up and not late}
 
 
-def alert_text(r: dict) -> tuple[str, str]:
+def alert_text(r: dict, guid: dict | None = None) -> tuple[str, str]:
     icon = "🟢" if r["positivo"] else "⚠️"
     title = f"{icon} {r['simbolo']} bateu {fmt_pct(r['surpresa_pct'])} · {r['movimento_tipo']} {fmt_pct(r['movimento_pct'])}"
     lines = [
@@ -520,7 +532,11 @@ def alert_text(r: dict) -> tuple[str, str]:
     if up is not None or down is not None:
         lines.append(f"Revisões 7 dias: {int(up or 0)} ↑ / {int(down or 0)} ↓"
                      + (f" (estimativa {fmt_pct(r['prox_trim_eps_var_7d'])})" if r.get("prox_trim_eps_var_7d") is not None else ""))
-    lines.append("Guidance: lê a secção 'Outlook' no comunicado.")
+    if guid and guid.get("frases"):
+        lines.append("Guidance (do comunicado, em inglês):")
+        lines += [f"• {s}" for s in guid["frases"]]
+    else:
+        lines.append("Guidance: lê a secção 'Outlook' no comunicado.")
     return title, "\n".join(lines)
 
 
@@ -557,8 +573,9 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
             continue
         send = r["positivo"] or (r["bateu_mas_cai"] and cfg["alertar_bateu_mas_cai"])
         if send:
-            title, body = alert_text(r)
-            click, acts = links(r)
+            guid = fetch_guidance(cfg, r)
+            title, body = alert_text(r, guid)
+            click, acts = links(r, guid["url"] if guid else None)
             notify(cfg, title, body, tags=["chart_with_upwards_trend"] if r["positivo"] else ["warning"],
                    priority=4 if r["positivo"] else 3, click=click, actions=acts, dry=dry)
         if r["positivo"]:

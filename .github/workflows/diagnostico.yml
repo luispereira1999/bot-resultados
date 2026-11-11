@@ -1,0 +1,28 @@
+name: Diagnóstico do guidance
+
+# Mostra o excerto de guidance que o bot tiraria do comunicado de uma empresa (para testar a SEC).
+# Fica num ficheiro à parte para não interferir com a fila das corridas contínuas do bot.
+on:
+  workflow_dispatch:
+    inputs:
+      simbolo:
+        description: Símbolo (ex. CSCO)
+        default: CRWV
+
+permissions:
+  contents: read
+
+jobs:
+  guidance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - env:
+          SIMBOLO: ${{ inputs.simbolo }}
+        run: python guidance.py "$SIMBOLO"
