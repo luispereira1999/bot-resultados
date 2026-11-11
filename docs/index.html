@@ -65,6 +65,12 @@
   <p class="warn" id="sample"></p>
 
   <section>
+    <h2>Teste histórico da estratégia</h2>
+    <div class="sub" id="histSub">A carregar…</div>
+    <div id="hist"></div>
+  </section>
+
+  <section>
     <h2>Próximos relatórios</h2>
     <div class="sub">Horas de Lisboa. Atualizado todas as manhãs.</div>
     <div id="calendar"></div>
@@ -174,6 +180,47 @@ function renderCalendar(cal) {
   }).join("");
 }
 
+function renderHistory(h) {
+  const sub = document.getElementById("histSub"), el = document.getElementById("hist");
+  if (!h) { sub.textContent = "Ainda a calcular. O primeiro cálculo demora cerca de uma hora."; return; }
+  const c = h.criterios_bot, b = h.bot;
+  sub.innerHTML = `${fmt(h.relatorios, 0)} relatórios de ${fmt(h.acoes, 0)} ações da NASDAQ e NYSE, de ${esc(h.periodo[0])} a ${esc(h.periodo[1])}.
+    Simula comprar na abertura da sessão seguinte ao relatório.`;
+  const signed = v => v == null ? "–" : `${v > 0 ? "+" : ""}${fmt(v, 2)}%`;
+  const tiles = [
+    [`Casos com os critérios do bot`, fmt(b.n, 0), `surpresa ≥ ${c.surpresa_min}% e abertura ≥ +${c.gap_min}%`],
+    ["Comprar na abertura, vender no fecho", signed(b.media_ab_fecho), `média por negócio · mediana ${signed(b.mediana_ab_fecho)}`],
+    ["Fecharam acima da abertura", b.n ? `${fmt(b.pct_fecho_acima, 0)}%` : "–", "dos casos"],
+    ["Chegaram a +5% depois da abertura", b.n ? `${fmt(b.pct_max_5, 0)}%` : "–", `a +10%: ${b.n ? fmt(b.pct_max_10, 0) : "–"}%`],
+    ["Vender a +5%, senão no fecho", signed(b.alvo5), `com saída a −3%: ${signed(b.alvo5_stop3)}`],
+  ];
+  const gaps = [...new Set(h.grelha.map(g => g.gap_min))], surs = [...new Set(h.grelha.map(g => g.surpresa_min))];
+  const gl = g => g == null ? "Qualquer abertura" : `Abertura ≥ ${g > 0 ? "+" : ""}${g}%`;
+  const sl = s => s == null ? "Qualquer resultado" : `Surpresa ≥ ${s}%`;
+  const cell = (s, g) => { const x = h.grelha.find(r => r.surpresa_min === s && r.gap_min === g);
+    return x && x.n ? `${pct(x.media_ab_fecho)} <span class="sub">(${fmt(x.n, 0)})</span>` : "–"; };
+  const grid = table([{ t: "Média abertura → fecho" }, ...gaps.map(g => ({ t: gl(g), num: 1 }))],
+    surs.map(s => [sl(s), ...gaps.map(g => cell(s, g))]));
+  const head = [{ t: "Grupo" }, { t: "Casos", num: 1 }, { t: "Média abertura → fecho", num: 1 }, { t: "Fecharam acima", num: 1 },
+    { t: "Chegaram a +5%", num: 1 }, { t: "Mínimo médio", num: 1 }, { t: "Vender a +5% ou no fecho", num: 1 }];
+  const line = (name, x) => [esc(name), fmt(x.n, 0), x.n ? pct(x.media_ab_fecho) : "–", x.n ? fmt(x.pct_fecho_acima, 0) + "%" : "–",
+    x.n ? fmt(x.pct_max_5, 0) + "%" : "–", x.n ? pct(x.media_min) : "–", x.n ? pct(x.alvo5) : "–"];
+  const groups = [["Critérios do bot", b], ["Bateu as estimativas mas abriu a cair", h.bateu_mas_abriu_a_cair],
+    ...h.por_capitalizacao.map(x => ["Capitalização " + x.grupo, x]), ...h.por_momento.map(x => ["Relatório " + x.grupo, x]),
+    ...h.por_semestre.map(x => ["Semestre " + x.grupo, x])];
+  el.innerHTML = `<div class="tiles" style="margin-top:12px">${tiles.map(([l, v, n]) =>
+      `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("")}</div>
+    <div class="day">Como mudam os resultados com os critérios</div>
+    <div class="sub">Média de comprar na abertura e vender no fecho; entre parênteses, o número de casos.</div>
+    <div class="scroll">${grid}</div>
+    <div class="day">Por grupo, com os critérios do bot</div>
+    <div class="scroll">${table(head, groups.map(([n, x]) => line(n, x)))}</div>
+    <p class="warn">Limitações: só entram ações que existem hoje; a subida na abertura faz de "ação a subir no pre-market";
+      os preços são diários, por isso na saída a −3% assume-se o pior caso (a queda vem primeiro); não inclui a diferença entre
+      compra e venda nem a taxa de câmbio da corretora (cerca de 0,15% em cada sentido na Trading 212), que se descontam a cada negócio.
+      Resultados passados não garantem resultados futuros.</p>`;
+}
+
 function renderPositives(log) {
   const rows = log.filter(r => r.positivo === "sim").sort((a, b) => b.registado_em.localeCompare(a.registado_em));
   const head = [{ t: "Relatório" }, { t: "Símbolo" }, { t: "Empresa", cls: "name" }, { t: "Surpresa EPS", num: 1 }, { t: "Preço no alerta", num: 1 },
@@ -203,9 +250,11 @@ function renderAll(log) {
 
 async function load() {
   const get = async (f, json) => { const r = await fetch(BASE + f, { cache: "no-store" }); if (!r.ok) throw new Error(f); return json ? r.json() : r.text(); };
-  let log = [], cal = null;
+  let log = [], cal = null, hist = null;
   try { log = parseCSV(await get("registo.csv"), ";"); } catch (e) { console.error(e); }
   try { cal = await get("calendario.json", true); } catch (e) { console.error(e); }
+  try { hist = await get("historico_resumo.json", true); } catch (e) { console.warn("sem teste histórico ainda"); }
+  renderHistory(hist);
   const last = log.map(r => r.registado_em).sort().pop();
   document.getElementById("updated").textContent = last ? `Último resultado registado: ${last} (Lisboa)` : "Ainda sem resultados registados";
   renderTiles(log); renderCalendar(cal); renderPositives(log); renderAll(log);
