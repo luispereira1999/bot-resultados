@@ -436,6 +436,7 @@ def task_morning(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
     us = us_events(today, today + timedelta(days=days), cfg["capitalizacao_minima_usd"])
     eu = [e for e in refresh_eu(state, today, days) if e["dia"] >= today.isoformat()]
     allev = us + eu
+    print(f"manha: {len(us)} relatórios NASDAQ/NYSE, {len(eu)} Euronext")
     if not allev:
         notify(cfg, "Resultados: nada nos próximos dias", "Sem relatórios na lista.", tags=["calendar"], dry=dry)
         return
@@ -553,6 +554,10 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
             append_log({**r, "registado_em": now.strftime("%Y-%m-%d %H:%M"), "data_resultados": r["dia"],
                         "positivo": "sim" if r["positivo"] else "não", "alertado": "sim" if send else "não"})
         seen[key] = now.isoformat()
+
+    new = sum(1 for e in candidates if seen.get(f"{e['simbolo']}|{e['dia']}") == now.isoformat())
+    print(f"verificar: {len(candidates)} resultados publicados desde {since}, {new} novos, "
+          f"{len(listed_symbols(today))} ações cotadas na lista")
 
     # limpa entradas com mais de 10 dias
     cutoff = (today - timedelta(days=10)).isoformat()
