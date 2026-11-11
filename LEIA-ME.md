@@ -49,6 +49,21 @@ O bot corre na nuvem com o GitHub Actions (`.github/workflows/bot.yml`), em veri
 
 Alternativa sem nuvem: `agendar.ps1` cria uma tarefa no Windows que corre o bot a cada 15 min, só com o PC ligado. Não uses os dois ao mesmo tempo, senão recebes avisos em duplicado.
 
+## Teste histórico
+
+`backtest.py` mede o que as ações fizeram depois dos resultados dos últimos 2 anos e grava `data/historico_resumo.json` (mostrado na dashboard) e `data/historico.csv` (todos os casos). Corre na nuvem no dia 1 de cada mês, ou à mão em Actions → Teste histórico → *Run workflow*.
+
+## Excerto do guidance (desligado até haver contacto)
+
+`guidance.py` vai ao comunicado na SEC e copia as frases de previsão para o alerta. A SEC exige um email de contacto real em cada pedido e não aceita o endereço noreply do GitHub. Para ligar: criar o segredo `SEC_USER_AGENT` no repositório com o texto `bot-resultados o-teu-email@exemplo.com`. Testar em Actions → Diagnóstico do guidance.
+
+## Testes
+
+```
+.venv\Scripts\python.exe -m pytest
+```
+Correm sozinhos no GitHub sempre que o código muda.
+
 ## Limitações
 
 - Dados do Yahoo Finance e da Nasdaq (grátis, não oficiais): podem atrasar minutos ou falhar pontualmente.
