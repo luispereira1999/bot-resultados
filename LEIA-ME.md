@@ -37,7 +37,7 @@ Acrescenta `--seco` para ver no ecrã sem enviar.
 
 ## Automático
 
-O bot corre na nuvem com o GitHub Actions (`.github/workflows/bot.yml`), a cada 15 minutos de segunda a sexta, mesmo com o PC desligado. O tópico ntfy está no segredo `NTFY_TOPICO` do repositório. O estado e o registo são guardados de volta na pasta `data/` a cada corrida.
+O bot corre na nuvem com o GitHub Actions (`.github/workflows/bot.yml`), em verificação contínua de segunda a sexta (de 2 em 2 minutos), mesmo com o PC desligado. A coluna `atraso_min` do registo mostra quantos minutos passaram entre a hora marcada do relatório e o bot o ver publicado no Yahoo. O tópico ntfy está no segredo `NTFY_TOPICO` do repositório. O estado e o registo são guardados de volta na pasta `data/` a cada corrida.
 
 - Ver as corridas: separador **Actions** do repositório.
 - Pausar: Actions → Bot Resultados → ⋯ → *Disable workflow*.

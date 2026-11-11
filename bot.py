@@ -58,6 +58,7 @@ LOG_COLUMNS = [
     "revisoes_sobe_7d", "revisoes_desce_7d",
     "dia_reacao", "fecho_anterior", "abertura", "maximo", "fecho",
     "abertura_vs_fecho_ant_pct", "fecho_vs_abertura_pct", "maximo_vs_abertura_pct",
+    "atraso_min",  # minutos entre a hora marcada do relatório e o bot o ver publicado no Yahoo
 ]
 
 MOMENTO_PT = {"BMO": "antes da abertura", "AMC": "depois do fecho", "TNS": "hora não indicada"}
@@ -413,6 +414,16 @@ def links(ev: dict) -> tuple[str, list[dict]]:
 def append_log(row: dict) -> None:
     DATA.mkdir(exist_ok=True)
     new = not LOG_FILE.exists()
+    if not new:  # se entretanto foram acrescentadas colunas, atualiza o cabeçalho do ficheiro
+        with LOG_FILE.open(encoding="utf-8-sig", newline="") as f:
+            old = list(csv.DictReader(f, delimiter=";"))
+            header = list(old[0].keys()) if old else LOG_COLUMNS
+        if header != LOG_COLUMNS:
+            with LOG_FILE.open("w", newline="", encoding="utf-8-sig") as f:
+                w = csv.DictWriter(f, fieldnames=LOG_COLUMNS, delimiter=";")
+                w.writeheader()
+                for r in old:
+                    w.writerow({k: r.get(k, "") for k in LOG_COLUMNS})
     with LOG_FILE.open("a", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=LOG_COLUMNS, delimiter=";")
         if new:
@@ -551,7 +562,8 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
                               "dia": r["dia"], "quando": r["quando"], "momento": r["momento"],
                               "surpresa_pct": r["surpresa_pct"]}
         if not dry:
-            append_log({**r, "registado_em": now.strftime("%Y-%m-%d %H:%M"), "data_resultados": r["dia"],
+            delay = round((now - datetime.fromisoformat(r["quando"])).total_seconds() / 60)
+            append_log({**r, "atraso_min": delay, "registado_em": now.strftime("%Y-%m-%d %H:%M"), "data_resultados": r["dia"],
                         "positivo": "sim" if r["positivo"] else "não", "alertado": "sim" if send else "não"})
         seen[key] = now.isoformat()
 

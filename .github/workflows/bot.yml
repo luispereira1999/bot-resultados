@@ -1,18 +1,22 @@
 name: Bot Resultados
 
+# Verificação contínua: de hora a hora arranca uma corrida que fica a verificar de 2 em 2 minutos
+# durante cerca de 65 minutos. Como só corre uma de cada vez, a seguinte fica à espera e arranca
+# assim que a anterior acaba, por isso os atrasos do agendador do GitHub não criam buracos.
+
 on:
   schedule:
     # horas em UTC; o bot decide sozinho o que fazer consoante a hora de Lisboa
-    - cron: "7,22,37,52 * * * 1-5"   # seg a sex, a cada 15 minutos
-    - cron: "7,37 0-2 * * 6"         # sábado de madrugada: relatórios de sexta à noite
-    - cron: "37 9 * * 6"             # sábado de manhã: revisão semanal
+    - cron: "5 * * * 1-5"    # seg a sex, todas as horas
+    - cron: "5 0,1 * * 6"    # sábado de madrugada: relatórios de sexta à noite
+    - cron: "37 9 * * 6"     # sábado de manhã: revisão semanal (uma só passagem)
   workflow_dispatch:
     inputs:
       comando:
         description: O que correr
         type: choice
-        default: auto
-        options: [auto, manha, verificar, premarket, rever, teste]
+        default: continuo
+        options: [continuo, auto, manha, verificar, premarket, rever, teste]
 
 permissions:
   contents: write
@@ -21,10 +25,14 @@ concurrency:
   group: bot-resultados
   cancel-in-progress: false
 
+env:
+  MINUTOS_CICLO: 65
+  SEGUNDOS_ENTRE_VERIFICACOES: 120
+
 jobs:
   correr:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 85
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -35,12 +43,34 @@ jobs:
       - name: Correr o bot
         env:
           NTFY_TOPICO: ${{ secrets.NTFY_TOPICO }}
-          COMANDO: ${{ inputs.comando || 'auto' }}
-        run: python bot.py "$COMANDO"
-      - name: Guardar estado e registo
-        if: always()
+          COMANDO: ${{ inputs.comando || (github.event.schedule == '37 9 * * 6' && 'auto') || 'continuo' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A data
-          git diff --cached --quiet || (git commit -q -m "Atualiza dados do bot" && git push -q)
+
+          guardar() {  # guarda o estado e o registo no repositório, se mudaram
+            git add -A data
+            git diff --cached --quiet && return 0
+            git commit -q -m "Atualiza dados do bot"
+            git pull -q --rebase || true
+            git push -q || echo "::warning::Não consegui guardar os dados; tento na próxima passagem"
+          }
+
+          if [ "$COMANDO" != "continuo" ]; then
+            resultado=0
+            python bot.py "$COMANDO" || resultado=$?
+            guardar
+            exit $resultado
+          fi
+
+          fim=$((SECONDS + MINUTOS_CICLO * 60))
+          total=0; falhas=0
+          while [ $SECONDS -lt $fim ]; do
+            total=$((total + 1))
+            python bot.py auto || falhas=$((falhas + 1))
+            guardar
+            sleep "$SEGUNDOS_ENTRE_VERIFICACOES"
+          done
+          echo "Passagens: $total, com falhas: $falhas"
+          # só marca a corrida como falhada (e manda email) se mais de metade das passagens falhou
+          [ $((falhas * 2)) -le $total ]
