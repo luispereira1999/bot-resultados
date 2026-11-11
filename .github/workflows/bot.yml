@@ -44,7 +44,7 @@ jobs:
       - name: Correr o bot
         env:
           NTFY_TOPICO: ${{ secrets.NTFY_TOPICO }}
-          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          SEC_CONTACTO: ${{ secrets.SEC_CONTACTO }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           COMANDO: ${{ inputs.comando || (github.event.schedule == '37 9 * * 6' && 'auto') || 'continuo' }}

@@ -53,9 +53,9 @@ Alternativa sem nuvem: `agendar.ps1` cria uma tarefa no Windows que corre o bot 
 
 `backtest.py` mede o que as ações fizeram depois dos resultados dos últimos 2 anos e grava `data/historico_resumo.json` (mostrado na dashboard) e `data/historico.csv` (todos os casos). Corre na nuvem no dia 1 de cada mês, ou à mão em Actions → Teste histórico → *Run workflow*.
 
-## Excerto do guidance (desligado até haver contacto)
+## Excerto do guidance
 
-`guidance.py` vai ao comunicado na SEC e copia as frases de previsão para o alerta. A SEC exige um email de contacto real em cada pedido e não aceita o endereço noreply do GitHub. Para ligar: criar o segredo `SEC_USER_AGENT` no repositório com o texto `bot-resultados o-teu-email@exemplo.com`. Testar em Actions → Diagnóstico do guidance.
+`guidance.py` vai ao comunicado na SEC e copia as frases de previsão para o alerta. A SEC exige um email de contacto real em cada pedido e não aceita o endereço noreply do GitHub. O email fica no segredo `SEC_CONTACTO` do repositório (e em `config.local.json` no PC), nunca no código. Testar em Actions → Diagnóstico do guidance.
 
 ## Testes
 

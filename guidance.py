@@ -31,6 +31,11 @@ BOILERPLATE = re.compile(r"forward[- ]looking|safe harbor|undue reliance|risks? 
                          r"conference call|webcast|reconciliation", re.I)
 
 
+def identify(contact: str) -> str:
+    """Identificação que a SEC pede em cada pedido: nome da ferramenta e email de contacto."""
+    return f"bot-resultados {contact}"
+
+
 def _get(url: str, user_agent: str) -> requests.Response:
     r = requests.get(url, headers={"User-Agent": user_agent, "Accept-Encoding": "gzip, deflate"}, timeout=30)
     r.raise_for_status()
@@ -129,9 +134,9 @@ def guidance_for(symbol: str, user_agent: str) -> dict | None:
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     import bot
-    ua = bot.load_config().get("sec_user_agent")
-    if not ua:
-        sys.exit("Falta o contacto para a SEC: segredo SEC_USER_AGENT no GitHub ou 'sec_user_agent' em config.local.json "
-                 "(formato: 'bot-resultados o-teu-email@exemplo.com').")
-    out = guidance_for(sys.argv[1], ua)
+    contact = bot.load_config().get("sec_contacto")
+    if not contact:
+        sys.exit("Falta o email de contacto para a SEC: segredo SEC_CONTACTO no GitHub "
+                 "ou 'sec_contacto' em config.local.json.")
+    out = guidance_for(sys.argv[1], identify(contact))
     print(json.dumps(out, ensure_ascii=False, indent=1))

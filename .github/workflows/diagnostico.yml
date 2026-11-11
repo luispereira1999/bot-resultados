@@ -24,6 +24,6 @@ jobs:
           cache: pip
       - run: pip install -q -r requirements.txt
       - env:
-          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          SEC_CONTACTO: ${{ secrets.SEC_CONTACTO }}
           SIMBOLO: ${{ inputs.simbolo }}
         run: python guidance.py "$SIMBOLO"

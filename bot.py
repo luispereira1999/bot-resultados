@@ -100,8 +100,8 @@ def load_config() -> dict:
             cfg.update(json.loads(path.read_text(encoding="utf-8")))
     if os.environ.get("NTFY_TOPICO"):  # na nuvem vem de um segredo do GitHub
         cfg["ntfy_topico"] = os.environ["NTFY_TOPICO"].strip()
-    if os.environ.get("SEC_USER_AGENT"):  # contacto exigido pela SEC para o excerto do guidance
-        cfg["sec_user_agent"] = os.environ["SEC_USER_AGENT"].strip()
+    if os.environ.get("SEC_CONTACTO"):  # email de contacto exigido pela SEC para o excerto do guidance
+        cfg["sec_contacto"] = os.environ["SEC_CONTACTO"].strip()
     return cfg
 
 
@@ -413,11 +413,11 @@ def links(ev: dict, release_url: str | None = None) -> tuple[str, list[dict]]:
 
 def fetch_guidance(cfg: dict, ev: dict) -> dict | None:
     """Frases de previsão do comunicado na SEC. Se algo falhar, o alerta sai sem elas."""
-    if not cfg.get("guidance_no_alerta") or not cfg.get("sec_user_agent") or ev["mercado"] == "Euronext":
+    if not cfg.get("guidance_no_alerta") or not cfg.get("sec_contacto") or ev["mercado"] == "Euronext":
         return None
     try:
         import guidance
-        return guidance.guidance_for(ev["simbolo"], cfg["sec_user_agent"])
+        return guidance.guidance_for(ev["simbolo"], guidance.identify(cfg["sec_contacto"]))
     except Exception:
         log_error(f"Guidance: falhou {ev['simbolo']}")
         return None
