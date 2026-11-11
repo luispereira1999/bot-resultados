@@ -1,0 +1,46 @@
+name: Teste histórico
+
+# Recalcula o teste histórico da estratégia (2 anos de resultados). Demora 30 a 60 minutos.
+on:
+  schedule:
+    - cron: "17 3 1 * *"   # dia 1 de cada mês
+  workflow_dispatch:
+    inputs:
+      max:
+        description: Limitar o número de ações (0 = todas)
+        default: "0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: historico
+  cancel-in-progress: false
+
+jobs:
+  calcular:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Calcular
+        env:
+          MAX: ${{ inputs.max || '0' }}
+        run: python backtest.py --max "$MAX"
+      - name: Guardar resultados
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/historico_resumo.json data/historico.csv
+          git diff --cached --quiet && exit 0
+          git commit -q -m "Atualiza o teste histórico"
+          for i in 1 2 3 4 5; do
+            git pull -q --rebase && git push -q && exit 0
+            sleep 15
+          done
+          exit 1
