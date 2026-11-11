@@ -128,6 +128,10 @@ def guidance_for(symbol: str, user_agent: str) -> dict | None:
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    cfg = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
-    out = guidance_for(sys.argv[1], cfg["sec_user_agent"])
+    import bot
+    ua = bot.load_config().get("sec_user_agent")
+    if not ua:
+        sys.exit("Falta o contacto para a SEC: segredo SEC_USER_AGENT no GitHub ou 'sec_user_agent' em config.local.json "
+                 "(formato: 'bot-resultados o-teu-email@exemplo.com').")
+    out = guidance_for(sys.argv[1], ua)
     print(json.dumps(out, ensure_ascii=False, indent=1))

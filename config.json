@@ -8,6 +8,5 @@
   "minutos_antes_abertura_resumo": 30,
   "dias_calendario": 3,
   "max_empresas_por_dia_no_resumo": 15,
-  "sec_user_agent": "bot-resultados 67525203+luispereira1999@users.noreply.github.com",
   "guidance_no_alerta": true
 }

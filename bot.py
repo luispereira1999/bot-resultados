@@ -100,6 +100,8 @@ def load_config() -> dict:
             cfg.update(json.loads(path.read_text(encoding="utf-8")))
     if os.environ.get("NTFY_TOPICO"):  # na nuvem vem de um segredo do GitHub
         cfg["ntfy_topico"] = os.environ["NTFY_TOPICO"].strip()
+    if os.environ.get("SEC_USER_AGENT"):  # contacto exigido pela SEC para o excerto do guidance
+        cfg["sec_user_agent"] = os.environ["SEC_USER_AGENT"].strip()
     return cfg
 
 
