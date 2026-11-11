@@ -1,0 +1,46 @@
+name: Bot Resultados
+
+on:
+  schedule:
+    # horas em UTC; o bot decide sozinho o que fazer consoante a hora de Lisboa
+    - cron: "7,22,37,52 * * * 1-5"   # seg a sex, a cada 15 minutos
+    - cron: "7,37 0-2 * * 6"         # sábado de madrugada: relatórios de sexta à noite
+    - cron: "37 9 * * 6"             # sábado de manhã: revisão semanal
+  workflow_dispatch:
+    inputs:
+      comando:
+        description: O que correr
+        type: choice
+        default: auto
+        options: [auto, manha, verificar, premarket, rever, teste]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bot-resultados
+  cancel-in-progress: false
+
+jobs:
+  correr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - name: Correr o bot
+        env:
+          NTFY_TOPICO: ${{ secrets.NTFY_TOPICO }}
+          COMANDO: ${{ inputs.comando || 'auto' }}
+        run: python bot.py "$COMANDO"
+      - name: Guardar estado e registo
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          git diff --cached --quiet || (git commit -q -m "Atualiza dados do bot" && git push -q)

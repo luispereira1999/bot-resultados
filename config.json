@@ -1,0 +1,13 @@
+{
+  "ntfy_servidor": "https://ntfy.sh",
+
+  "capitalizacao_minima_usd": 2000000000,
+  "surpresa_eps_minima_pct": 5,
+  "movimento_preco_minimo_pct": 2,
+  "alertar_bateu_mas_cai": false,
+
+  "hora_resumo_manha": "08:30",
+  "minutos_antes_abertura_resumo": 30,
+  "dias_calendario": 3,
+  "max_empresas_por_dia_no_resumo": 15
+}
