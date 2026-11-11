@@ -1,0 +1,33 @@
+name: Publicar dashboard
+
+# Só publica quando a página muda. Os dados são lidos diretamente do repositório,
+# por isso a dashboard atualiza-se sozinha sem voltar a publicar.
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**", ".github/workflows/pagina.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pagina
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs
+      - id: deploy
+        uses: actions/deploy-pages@v5

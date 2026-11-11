@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot de Resultados</title>
+<style>
+  :root {
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --line: #e1e0d9; --axis: #c3c2b7; --up: #006300; --down: #d03b3b; --accent: #2a78d6; --chip: #f0efec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --line: #2c2c2a; --axis: #383835; --up: #0ca30c; --down: #e66767; --accent: #3987e5; --chip: #2c2c2a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-bottom: 20px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: var(--ink-2); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+            padding: 16px; margin-top: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .tile .label { color: var(--ink-2); font-size: 13px; }
+  .tile .value { font-size: 28px; font-weight: 650; margin: 2px 0; font-variant-numeric: tabular-nums; }
+  .tile .note { color: var(--muted); font-size: 12px; }
+  .scroll { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { padding: 7px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink-2); font-weight: 600; font-size: 12px; border-bottom-color: var(--axis); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.name { white-space: normal; min-width: 160px; color: var(--ink-2); }
+  tr:last-child td { border-bottom: 0; }
+  .arrow.up { color: var(--up); } .arrow.down { color: var(--down); }
+  .chip { display: inline-block; background: var(--chip); color: var(--ink-2); border-radius: 999px;
+          padding: 1px 8px; font-size: 12px; }
+  .day { margin-top: 14px; font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 10px; }
+  input[type=search] { background: var(--page); color: var(--ink); border: 1px solid var(--axis);
+                       border-radius: 8px; padding: 7px 10px; font: inherit; min-width: 220px; }
+  label { color: var(--ink-2); font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 13px; margin-top: 6px; }
+  .empty { color: var(--muted); padding: 12px 0; }
+  .warn { color: var(--ink-2); font-size: 13px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Bot de Resultados</h1>
+    <span class="sub" id="updated">A carregar…</span>
+    <span class="sub"><a href="https://github.com/luispereira1999/bot-resultados">Repositório</a> ·
+      <a href="https://github.com/luispereira1999/bot-resultados/actions">Corridas do bot</a></span>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+  <p class="warn" id="sample"></p>
+
+  <section>
+    <h2>Próximos relatórios</h2>
+    <div class="sub">Horas de Lisboa. Atualizado todas as manhãs.</div>
+    <div id="calendar"></div>
+  </section>
+
+  <section>
+    <h2>Alertas positivos</h2>
+    <div class="sub">EPS acima da estimativa e ação a subir quando o bot avisou. As últimas três colunas mostram o que a ação fez na sessão seguinte ao relatório.</div>
+    <div class="scroll" id="positives"></div>
+  </section>
+
+  <section>
+    <h2>Todos os resultados registados</h2>
+    <div class="controls">
+      <input type="search" id="q" placeholder="Procurar símbolo ou empresa" aria-label="Procurar">
+      <label><input type="checkbox" id="hideLate" checked> Esconder os apanhados tarde</label>
+      <span class="sub" id="count"></span>
+    </div>
+    <div class="scroll" id="all"></div>
+  </section>
+</main>
+
+<script>
+// No GitHub Pages lê os dados diretamente do repositório; em local lê a pasta data/.
+const BASE = location.hostname.endsWith("github.io")
+  ? "https://raw.githubusercontent.com/luispereira1999/bot-resultados/main/data/"
+  : "../data/";
+const MOMENTO = { BMO: "antes da abertura", AMC: "depois do fecho", TNS: "hora não indicada" };
+
+function parseCSV(text, sep) {
+  text = text.replace(/^﻿/, "");
+  const rows = []; let row = [], cur = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') q = false;
+      else cur += c;
+    } else if (c === '"') q = true;
+    else if (c === sep) { row.push(cur); cur = ""; }
+    else if (c === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (c !== "\r") cur += c;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  const head = rows.shift() || [];
+  return rows.filter(r => r.length > 1).map(r => Object.fromEntries(head.map((h, i) => [h, r[i] ?? ""])));
+}
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = s => (s === "" || s == null || isNaN(+s)) ? null : +s;
+const fmt = (v, d = 1) => v == null ? "–" : v.toLocaleString("pt-PT", { minimumFractionDigits: d, maximumFractionDigits: d });
+function pct(v) {
+  if (v == null) return '<span class="sub">–</span>';
+  const cls = v > 0 ? "up" : v < 0 ? "down" : "";
+  const arrow = v > 0 ? "▲" : v < 0 ? "▼" : "•";
+  return `<span class="arrow ${cls}" aria-hidden="true">${arrow}</span> ${v > 0 ? "+" : ""}${fmt(v)}%`;
+}
+const big = v => v == null ? "–" : v >= 1e9 ? fmt(v / 1e9) + " mil M$" : fmt(v / 1e6, 0) + " M$";
+const dayName = d => new Date(d + "T12:00:00").toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" });
+const yahoo = s => `<a href="https://finance.yahoo.com/quote/${encodeURIComponent(s)}/" target="_blank" rel="noopener">${esc(s)}</a>`;
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+function table(head, rows) {
+  if (!rows.length) return '<div class="empty">Ainda sem dados.</div>';
+  return `<table><thead><tr>${head.map(h => `<th class="${h.num ? "num" : ""}">${h.t}</th>`).join("")}</tr></thead><tbody>${
+    rows.map(r => `<tr>${r.map((c, i) => `<td class="${head[i].num ? "num" : ""} ${head[i].cls || ""}">${c}</td>`).join("")}</tr>`).join("")
+  }</tbody></table>`;
+}
+
+function renderTiles(log) {
+  const pos = log.filter(r => r.positivo === "sim");
+  const done = pos.filter(r => r.fecho !== "");
+  const oc = done.map(r => num(r.fecho_vs_abertura_pct)).filter(v => v != null);
+  const hi = done.map(r => num(r.maximo_vs_abertura_pct)).filter(v => v != null);
+  const delays = log.filter(r => r.movimento_tipo !== "tardio").map(r => num(r.atraso_min)).filter(v => v != null && v >= 0);
+  const avg = oc.length ? oc.reduce((a, b) => a + b, 0) / oc.length : null;
+  const med = median(delays);
+  const tiles = [
+    ["Alertas positivos", pos.length, `${done.length} com sessão seguinte fechada`],
+    ["Fecharam acima da abertura", oc.length ? `${oc.filter(v => v > 0).length} de ${oc.length}` : "–", "entre os alertas positivos"],
+    ["Comprar na abertura, vender no fecho", avg == null ? "–" : `${avg > 0 ? "+" : ""}${fmt(avg, 2)}%`, "média por alerta, sem comissões"],
+    ["Chegaram a +5% depois da abertura", hi.length ? `${hi.filter(v => v >= 5).length} de ${hi.length}` : "–", "máximo do dia face à abertura"],
+    ["Atraso típico do Yahoo", med == null ? "–" : `${fmt(med, 0)} min`, delays.length ? `mediana de ${delays.length} resultados` : "ainda sem medições"],
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(([l, v, n]) =>
+    `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
+  document.getElementById("sample").textContent = done.length < 20
+    ? `Só ${done.length} alertas positivos têm a sessão seguinte fechada. São poucos para tirar conclusões: espera por pelo menos 20.` : "";
+}
+
+function renderCalendar(cal) {
+  const el = document.getElementById("calendar");
+  const now = Date.now() - 3600e3;
+  const evs = (cal?.eventos || []).filter(e => new Date(e.quando).getTime() >= now);
+  if (!evs.length) { el.innerHTML = '<div class="empty">Sem relatórios no calendário. O bot atualiza-o às 08:30 dos dias úteis.</div>'; return; }
+  const days = {};
+  evs.forEach(e => (days[e.dia] ||= []).push(e));
+  const head = [{ t: "Hora" }, { t: "Símbolo" }, { t: "Empresa", cls: "name" }, { t: "Mercado" }, { t: "Momento" }, { t: "EPS estimado", num: 1 }, { t: "Capitalização", num: 1 }];
+  const row = e => [new Date(e.quando).toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" }),
+    yahoo(e.simbolo), esc(e.nome), `<span class="chip">${esc(e.mercado)}</span>`, MOMENTO[e.momento] || "", e.eps_estimado == null ? "–" : fmt(e.eps_estimado, 2), big(e.capitalizacao)];
+  el.innerHTML = Object.keys(days).sort().map(d => {
+    const list = days[d].sort((a, b) => (b.capitalizacao || 0) - (a.capitalizacao || 0));
+    const top = list.slice(0, 10), rest = list.slice(10);
+    return `<div class="day">${dayName(d)} <span class="sub">· ${list.length} empresas</span></div>
+      <div class="scroll">${table(head, top.map(row))}</div>
+      ${rest.length ? `<details><summary>Ver as outras ${rest.length}</summary><div class="scroll">${table(head, rest.map(row))}</div></details>` : ""}`;
+  }).join("");
+}
+
+function renderPositives(log) {
+  const rows = log.filter(r => r.positivo === "sim").sort((a, b) => b.registado_em.localeCompare(a.registado_em));
+  const head = [{ t: "Relatório" }, { t: "Símbolo" }, { t: "Empresa", cls: "name" }, { t: "Surpresa EPS", num: 1 }, { t: "Preço no alerta", num: 1 },
+    { t: "Abertura vs fecho anterior", num: 1 }, { t: "Abertura → fecho", num: 1 }, { t: "Abertura → máximo", num: 1 }];
+  document.getElementById("positives").innerHTML = table(head, rows.map(r => [
+    `${esc(r.data_resultados)} <span class="sub">${MOMENTO[r.momento] || ""}</span>`, yahoo(r.simbolo), esc(r.nome),
+    pct(num(r.surpresa_pct)), `${pct(num(r.movimento_pct))} <span class="sub">${esc(r.movimento_tipo)}</span>`,
+    pct(num(r.abertura_vs_fecho_ant_pct)), pct(num(r.fecho_vs_abertura_pct)), pct(num(r.maximo_vs_abertura_pct))]));
+}
+
+function renderAll(log) {
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  const hide = document.getElementById("hideLate").checked;
+  let rows = log.filter(r => (!hide || r.movimento_tipo !== "tardio") &&
+    (!q || r.simbolo.toLowerCase().includes(q) || r.nome.toLowerCase().includes(q)));
+  rows.sort((a, b) => b.registado_em.localeCompare(a.registado_em));
+  document.getElementById("count").textContent = `${rows.length} resultados` + (rows.length > 200 ? " (a mostrar 200)" : "");
+  const head = [{ t: "Registado" }, { t: "Símbolo" }, { t: "Empresa", cls: "name" }, { t: "Mercado" }, { t: "EPS real / estimado", num: 1 },
+    { t: "Surpresa", num: 1 }, { t: "Preço", num: 1 }, { t: "Resultado" }, { t: "Atraso", num: 1 }];
+  document.getElementById("all").innerHTML = table(head, rows.slice(0, 200).map(r => [
+    esc(r.registado_em), yahoo(r.simbolo), esc(r.nome), `<span class="chip">${esc(r.mercado)}</span>`,
+    `${r.eps_real === "" ? "–" : fmt(num(r.eps_real), 2)} / ${r.eps_estimado === "" ? "–" : fmt(num(r.eps_estimado), 2)}`,
+    pct(num(r.surpresa_pct)), `${pct(num(r.movimento_pct))} <span class="sub">${esc(r.movimento_tipo)}</span>`,
+    r.positivo === "sim" ? '<span class="chip">✓ alerta enviado</span>' : (r.movimento_tipo === "tardio" ? '<span class="sub">apanhado tarde</span>' : '<span class="sub">sem alerta</span>'),
+    r.atraso_min === "" ? "–" : `${fmt(num(r.atraso_min), 0)} min`]));
+}
+
+async function load() {
+  const get = async (f, json) => { const r = await fetch(BASE + f, { cache: "no-store" }); if (!r.ok) throw new Error(f); return json ? r.json() : r.text(); };
+  let log = [], cal = null;
+  try { log = parseCSV(await get("registo.csv"), ";"); } catch (e) { console.error(e); }
+  try { cal = await get("calendario.json", true); } catch (e) { console.error(e); }
+  const last = log.map(r => r.registado_em).sort().pop();
+  document.getElementById("updated").textContent = last ? `Último resultado registado: ${last} (Lisboa)` : "Ainda sem resultados registados";
+  renderTiles(log); renderCalendar(cal); renderPositives(log); renderAll(log);
+  document.getElementById("q").oninput = () => renderAll(log);
+  document.getElementById("hideLate").onchange = () => renderAll(log);
+}
+load();
+</script>
+</body>
+</html>

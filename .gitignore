@@ -4,3 +4,4 @@ config.local.json
 data/cotadas.json
 data/erros.log
 data/*.tmp
+.claude/

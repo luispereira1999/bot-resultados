@@ -14,6 +14,10 @@ Resultados que o bot só apanha depois de a sessão de reação acabar (ex.: PC 
 
 Todos os resultados (positivos ou não) ficam em `data/registo.csv`. Ao sábado o bot preenche o que cada ação fez no dia seguinte ao relatório.
 
+## Dashboard
+
+https://luispereira1999.github.io/bot-resultados/ mostra os próximos relatórios, os alertas enviados e o que cada ação fez a seguir. A página (`docs/index.html`) lê `data/registo.csv` e `data/calendario.json` diretamente do repositório, por isso atualiza-se sozinha. O bot preenche a reação de cada ação todas as noites, depois do fecho de Nova Iorque.
+
 ## Instalar a app ntfy
 
 1. Instala **ntfy** (Android: Play Store / iPhone: App Store).

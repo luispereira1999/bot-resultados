@@ -448,6 +448,10 @@ def task_morning(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
     eu = [e for e in refresh_eu(state, today, days) if e["dia"] >= today.isoformat()]
     allev = us + eu
     print(f"manha: {len(us)} relatórios NASDAQ/NYSE, {len(eu)} Euronext")
+    if not dry:  # a dashboard lê este ficheiro
+        DATA.mkdir(exist_ok=True)
+        (DATA / "calendario.json").write_text(
+            json.dumps({"gerado_em": now.isoformat(), "eventos": allev}, ensure_ascii=False), encoding="utf-8")
     if not allev:
         notify(cfg, "Resultados: nada nos próximos dias", "Sem relatórios na lista.", tags=["calendar"], dry=dry)
         return
@@ -705,7 +709,8 @@ def main() -> None:
             before = timedelta(minutes=int(cfg["minutos_antes_abertura_resumo"]))
             if weekday and opens - before <= now < opens and state.get("ultimo_resumo_premarket") != today:
                 step("premarket", lambda: task_premarket(cfg, state, now, a.seco), "ultimo_resumo_premarket")
-            if now.weekday() == 5 and state.get("ultima_revisao") != today:
+            # revisão: todas as noites depois do fecho de Nova Iorque, e ao sábado de manhã
+            if ((weekday and now.hour >= 22) or now.weekday() == 5) and state.get("ultima_revisao") != today:
                 step("rever", task_review, "ultima_revisao")
             if failed:
                 sys.exit(1)
