@@ -189,18 +189,6 @@
  },
  "eu_eventos": [
   {
-   "simbolo": "RENE.LS",
-   "nome": "RENE.LS",
-   "mercado": "Euronext",
-   "capitalizacao": null,
-   "quando": "2026-11-12T17:00:00+00:00",
-   "dia": "2026-11-12",
-   "momento": "AMC",
-   "eps_estimado": null,
-   "eps_real": null,
-   "surpresa_pct": null
-  },
-  {
    "simbolo": "ABN.AS",
    "nome": "ABN.AS",
    "mercado": "Euronext",
@@ -217,36 +205,12 @@
    "nome": "KBC.BR",
    "mercado": "Euronext",
    "capitalizacao": null,
-   "quando": "2026-11-12T16:00:00+00:00",
+   "quando": "2026-11-12T01:00:00+00:00",
    "dia": "2026-11-12",
-   "momento": "TNS",
-   "eps_estimado": 2.82,
-   "eps_real": null,
-   "surpresa_pct": null
-  },
-  {
-   "simbolo": "UCG.MI",
-   "nome": "UCG.MI",
-   "mercado": "Euronext",
-   "capitalizacao": null,
-   "quando": "2026-11-09T06:00:00+00:00",
-   "dia": "2026-11-09",
    "momento": "BMO",
-   "eps_estimado": 1.88,
-   "eps_real": 2.15,
-   "surpresa_pct": 14.02
-  },
-  {
-   "simbolo": "ENEL.MI",
-   "nome": "ENEL.MI",
-   "mercado": "Euronext",
-   "capitalizacao": null,
-   "quando": "2026-11-12T16:00:00+00:00",
-   "dia": "2026-11-12",
-   "momento": "TNS",
-   "eps_estimado": 0.18,
-   "eps_real": null,
-   "surpresa_pct": null
+   "eps_estimado": 2.82,
+   "eps_real": 2.8,
+   "surpresa_pct": -0.57
   },
   {
    "simbolo": "G.MI",
@@ -261,7 +225,7 @@
    "surpresa_pct": null
   }
  ],
- "eu_atualizado": "2026-11-12",
+ "eu_atualizado": "2026-11-13",
  "ultimo_resumo_manha": "2026-11-12",
  "ultimo_resumo_premarket": "2026-11-12",
  "ultima_revisao": "2026-11-12"
