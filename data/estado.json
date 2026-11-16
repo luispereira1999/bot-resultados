@@ -264,43 +264,19 @@
  },
  "eu_eventos": [
   {
-   "simbolo": "ABN.AS",
-   "nome": "ABN.AS",
+   "simbolo": "SON.LS",
+   "nome": "SON.LS",
    "mercado": "Euronext",
    "capitalizacao": null,
-   "quando": "2026-11-11T01:00:00+00:00",
-   "dia": "2026-11-11",
-   "momento": "BMO",
-   "eps_estimado": 0.92,
-   "eps_real": 1.09,
-   "surpresa_pct": 18.81
-  },
-  {
-   "simbolo": "KBC.BR",
-   "nome": "KBC.BR",
-   "mercado": "Euronext",
-   "capitalizacao": null,
-   "quando": "2026-11-12T01:00:00+00:00",
-   "dia": "2026-11-12",
-   "momento": "BMO",
-   "eps_estimado": 2.82,
-   "eps_real": 2.8,
-   "surpresa_pct": -0.57
-  },
-  {
-   "simbolo": "ENEL.MI",
-   "nome": "ENEL.MI",
-   "mercado": "Euronext",
-   "capitalizacao": null,
-   "quando": "2026-11-12T00:00:00+00:00",
-   "dia": "2026-11-12",
-   "momento": "BMO",
-   "eps_estimado": 0.18,
-   "eps_real": 0.2,
-   "surpresa_pct": 11.71
+   "quando": "2026-11-18T17:00:00+00:00",
+   "dia": "2026-11-18",
+   "momento": "AMC",
+   "eps_estimado": null,
+   "eps_real": null,
+   "surpresa_pct": null
   }
  ],
- "eu_atualizado": "2026-11-14",
+ "eu_atualizado": "2026-11-16",
  "ultimo_resumo_manha": "2026-11-13",
  "ultimo_resumo_premarket": "2026-11-13",
  "ultima_revisao": "2026-11-14"
