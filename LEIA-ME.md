@@ -9,7 +9,8 @@ Avisa no telemóvel (app **ntfy**) sobre os relatórios de resultados de ações
 | 08:30, seg–sex | Calendário dos próximos 3 dias: empresas, hora (🌅 antes da abertura / 🌙 depois do fecho) e EPS estimado |
 | Assim que sai um resultado | 🟢 só se for **positivo**: EPS bem acima da estimativa (≥ 10%) **e** preço ainda quase parado no pre-market/after-hours (entre −2% e +2%), ou seja, o mercado ainda não reagiu. No teste do pre-market, comprar no after-hours 1 hora depois do comunicado e vender na abertura deu +1,0% em média (ver abaixo); quanto mais cedo, melhor. Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
 | Minutos depois do comunicado (⚡) | O mesmo alerta, antecipado: o bot lê o EPS no comunicado entregue na SEC, sem esperar horas pelo Yahoo. Quando o Yahoo publica, confirma em silêncio ou manda ↩️ se não se confirmar |
-| 30 min antes da abertura de Nova Iorque (normalmente 14:00) | 🔔 Lembrete para vender na abertura: para cada alerta, o movimento quando foi enviado, o de agora e o ganho desde o alerta |
+| 30 min antes da abertura de Nova Iorque (normalmente 14:00) | 🔔 Lembrete de quando vender: para cada alerta, o movimento quando foi enviado, o de agora, o ganho desde o alerta e a melhor hora de venda |
+| À hora de vender, se não for a abertura | 🔔 "Hora de vender": às 10:30, 12:30 ou 14:30 de Nova Iorque, ou 15 min antes do fecho, conforme o teste do pre-market. Uma vez por ação, e não sai com mais de 1 hora de atraso |
 
 Resultados que o bot só apanha depois de a sessão de reação acabar (ex.: PC desligado) ficam no registo como `tardio` e não geram aviso.
 
@@ -111,6 +112,15 @@ O Yahoo só mostra o EPS horas depois do comunicado (nos relatórios depois do f
 ## Excerto do guidance
 
 `guidance.py` vai ao comunicado na SEC e copia as frases de previsão para o alerta. A SEC exige um email de contacto real em cada pedido e não aceita o endereço noreply do GitHub. O email fica no segredo `SEC_CONTACTO` do repositório (e em `config.local.json` no PC), nunca no código. Testar em Actions → Diagnóstico do guidance.
+
+## Especificação (PDF)
+
+`ESPECIFICACAO.pdf` descreve o bot: arquitetura, avisos, regras, estratégia, dados, configuração, testes históricos, estado atual e limitações. Os números vêm dos ficheiros do projeto. Para o atualizar (precisa do reportlab, que não faz parte do bot):
+
+```
+.venv\Scripts\pip install reportlab
+.venv\Scripts\python.exe scripts\gerar_especificacao.py
+```
 
 ## Testes
 

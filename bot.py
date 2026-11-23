@@ -606,13 +606,13 @@ def buy_entry(kind: str | None, when: datetime, early: bool) -> str | None:
     return None
 
 
-def best_exit(entry: str | None, momento: str) -> tuple[str, dict] | None:
-    """(como vender, estatísticas) da melhor saída para o critério do bot, depois de custos."""
+def best_exit(entry: str | None, momento: str) -> tuple[str, str, dict] | None:
+    """(saída, como vender, estatísticas) da melhor saída para o critério do bot, depois de custos."""
     s = premarket_summary()
     try:
         by_m = s["saidas"][entry]
         e = by_m.get(momento) if by_m.get(momento, {}).get("melhor") else by_m["todos"]
-        return s["nomes_saidas"][e["melhor"]], e["saidas"][e["melhor"]]
+        return e["melhor"], s["nomes_saidas"][e["melhor"]], e["saidas"][e["melhor"]]
     except (TypeError, KeyError):
         return None
 
@@ -626,9 +626,9 @@ def historical_hint(r: dict, now: datetime, early: bool) -> str | None:
     kind = r.get("movimento_tipo")
     entry = buy_entry(kind, now, early)
     best = best_exit(entry, r.get("momento", ""))
-    if not best or best[1].get("n", 0) < 30:
+    if not best or best[2].get("n", 0) < 30:
         return None
-    how, b = best
+    _, how, b = best
     cost = (premarket_summary() or {}).get("custo_ida_volta_pct", 0)
     action = "comprar no pre-market de amanhã" if kind == "after-hours" and not early else "comprar já"
     text = (f"💡 Estratégia: {action} e vender {how}. No teste histórico, comprar {BUY_MOMENT[entry]} e vender {how} deu "
@@ -890,12 +890,57 @@ def task_premarket(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
             line += f" ({fmt_pct(((1 + move / 100) / (1 + a / 100) - 1) * 100)} desde o alerta)"
         alert_at = datetime.fromisoformat(p["alerta_em"]) if p.get("alerta_em") else now
         best = best_exit(buy_entry(p.get("tipo_alerta"), alert_at, p.get("antecipado", False)), p["momento"])
-        how = best[0] if best else "na abertura"
-        line += f"\n   → vender {how}" + (f" (histórico {fmt_pct(best[1]['liquido'])} depois de custos)" if best else "")
+        how = best[1] if best else "na abertura"
+        line += f"\n   → vender {how}" + (f" (histórico {fmt_pct(best[2]['liquido'])} depois de custos)" if best else "")
         lines.append(line)
     opens = ny_open(now).astimezone(LIS)
     notify(cfg, f"🔔 Antes da abertura de Nova Iorque ({opens:%H:%M}): quando vender", "\n".join(lines),
            tags=["bell"], priority=4, dry=dry)
+
+
+SELL_TIMES = {"s1030": (10, 30), "s1230": (12, 30), "s1430": (14, 30), "fecho": (15, 45)}  # fecho: 15 min antes
+SELL_LATE_MIN = 60  # se o bot só passar mais tarde do que isto (ex.: parado), já não avisa
+
+
+def reaction_day(p: dict) -> date:
+    """Dia da sessão que reage ao relatório (hora de Nova Iorque): o próprio dia, ou o seguinte se saiu depois do fecho."""
+    ev = datetime.fromisoformat(p["quando"]).astimezone(NY)
+    d = ev.date() + timedelta(days=1 if ev.hour >= 16 else 0)
+    while d.weekday() >= 5:
+        d += timedelta(days=1)
+    return d
+
+
+def task_sell_reminders(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
+    """Avisa à hora de venda sugerida quando não é a abertura (10:30, 12:30, 14:30 ou 15 min antes do fecho).
+
+    A venda na abertura já vem no lembrete antes da abertura. Cada ação só é avisada uma vez.
+    """
+    ny = now.astimezone(NY)
+    for key, p in state.get("positivos", {}).items():
+        if p.get("lembrete_venda") or p["mercado"] == "Euronext" or not p.get("quando") or reaction_day(p) != ny.date():
+            continue
+        alert_at = datetime.fromisoformat(p["alerta_em"]) if p.get("alerta_em") else now
+        best = best_exit(buy_entry(p.get("tipo_alerta"), alert_at, p.get("antecipado", False)), p["momento"])
+        if not best or best[0] not in SELL_TIMES:
+            continue
+        exit_key, how, stats = best
+        target = ny.replace(hour=SELL_TIMES[exit_key][0], minute=SELL_TIMES[exit_key][1], second=0, microsecond=0)
+        if not target <= ny < target + timedelta(minutes=SELL_LATE_MIN):
+            continue
+        try:
+            move = num((yf.Ticker(p["simbolo"]).info or {}).get("regularMarketChangePercent"))
+        except Exception:
+            move = None
+        a = p.get("movimento_alerta_pct")
+        lines = [f"{p['nome']} · EPS {fmt_pct(p['surpresa_pct'])}",
+                 f"Hoje: {fmt_pct(move)} face ao fecho anterior" + (f" · no alerta {fmt_pct(a)}" if a is not None else "")]
+        if a is not None and move is not None:
+            lines.append(f"Desde o alerta: {fmt_pct(((1 + move / 100) / (1 + a / 100) - 1) * 100)}")
+        lines.append(f"No teste histórico, vender {how} rendeu {fmt_pct(stats['liquido'])} depois de custos.")
+        notify(cfg, f"🔔 Hora de vender {p['simbolo']} ({target.astimezone(LIS):%H:%M})", "\n".join(lines),
+               tags=["bell"], priority=4, click=f"https://finance.yahoo.com/quote/{p['simbolo']}/", dry=dry)
+        p["lembrete_venda"] = True
 
 
 def ny_open(now: datetime) -> datetime:
@@ -1007,6 +1052,8 @@ def main() -> None:
             before = timedelta(minutes=int(cfg["minutos_antes_abertura_resumo"]))
             if weekday and opens - before <= now < opens and state.get("ultimo_resumo_premarket") != today:
                 step("premarket", lambda: task_premarket(cfg, state, now, a.seco), "ultimo_resumo_premarket")
+            if weekday and opens <= now:
+                step("venda", lambda: task_sell_reminders(cfg, state, now, a.seco))
             # revisão: todas as noites depois do fecho de Nova Iorque, e ao sábado de manhã
             if ((weekday and now.hour >= 22) or now.weekday() == 5) and state.get("ultima_revisao") != today:
                 step("rever", task_review, "ultima_revisao")

@@ -609,3 +609,45 @@ def test_melhor_saida_e_a_mais_cedo_perto_da_melhor():
     assert r["melhor"] == "abertura"  # 12:30 rende só +0.1 pontos: não compensa esperar
     rows2 = [{**x, "fecho": 102.0} for x in rows]
     assert premarket.exits(pd.DataFrame(rows2), "ah17", cost=0.15)["melhor"] == "fecho"  # +1 ponto: vale a pena
+
+
+def _positivo_bmo():
+    return {**event(2026, 11, 11, 7, 0), "simbolo": "ABC", "nome": "ABC Corp", "mercado": "NYSE", "dia": "2026-11-11",
+            "momento": "BMO", "surpresa_pct": 15.0, "movimento_alerta_pct": 0.5, "tipo_alerta": "pre-market",
+            "antecipado": False, "alerta_em": datetime(2026, 11, 11, 7, 40, tzinfo=bot.NY).isoformat()}
+
+
+def test_aviso_de_venda_a_hora_sugerida(tmp_path, monkeypatch):
+    _premarket_resumo(tmp_path, monkeypatch)  # antes da abertura, comprado às 08:00: vender no fecho
+    sent = []
+    monkeypatch.setattr(bot, "notify", lambda cfg, title, body, **kw: sent.append((title, body)))
+    monkeypatch.setattr(bot.yf, "Ticker", lambda s: FakeTicker({"regularMarketChangePercent": 2.5}))
+    state = {"positivos": {"ABC|2026-11-11": _positivo_bmo()}}
+    at = lambda h, m: datetime(2026, 11, 11, h, m, tzinfo=bot.NY)
+    bot.task_sell_reminders(dict(bot.DEFAULTS), state, at(15, 40), dry=False)
+    assert sent == []                                            # ainda não são 15:45
+    bot.task_sell_reminders(dict(bot.DEFAULTS), state, at(15, 46), dry=False)
+    bot.task_sell_reminders(dict(bot.DEFAULTS), state, at(15, 48), dry=False)
+    assert len(sent) == 1                                        # avisa uma só vez
+    title, body = sent[0]
+    assert title == "🔔 Hora de vender ABC (20:45)"
+    assert "Desde o alerta: +2.0%" in body and "vender no fecho rendeu +0.4% depois de custos" in body
+
+
+def test_aviso_de_venda_nao_sai_atrasado_nem_para_vendas_na_abertura(tmp_path, monkeypatch):
+    _premarket_resumo(tmp_path, monkeypatch)
+    sent = []
+    monkeypatch.setattr(bot, "notify", lambda cfg, title, body, **kw: sent.append(title))
+    monkeypatch.setattr(bot.yf, "Ticker", lambda s: FakeTicker({"regularMarketChangePercent": 1.0}))
+    amc = {**event(2026, 11, 10, 16, 5), "simbolo": "XYZ", "nome": "XYZ", "mercado": "NASDAQ", "dia": "2026-11-10",
+           "momento": "AMC", "surpresa_pct": 20.0, "movimento_alerta_pct": 1.0, "tipo_alerta": "after-hours",
+           "antecipado": True, "alerta_em": datetime(2026, 11, 10, 17, 10, tzinfo=bot.NY).isoformat()}
+    state = {"positivos": {"XYZ|2026-11-10": amc, "ABC|2026-11-11": _positivo_bmo()}}
+    bot.task_sell_reminders(dict(bot.DEFAULTS), state, datetime(2026, 11, 11, 17, 0, tzinfo=bot.NY), dry=False)
+    assert sent == []  # XYZ vende-se na abertura (vai no lembrete das 14:00); ABC: o bot só passou 75 min depois
+
+
+def test_dia_da_reacao():
+    assert bot.reaction_day(event(2026, 11, 10, 7)) == datetime(2026, 11, 10).date()      # antes da abertura: no próprio dia
+    assert bot.reaction_day(event(2026, 11, 10, 16, 5)) == datetime(2026, 11, 11).date()  # depois do fecho: no dia seguinte
+    assert bot.reaction_day(event(2026, 11, 13, 16, 5)) == datetime(2026, 11, 16).date()  # sexta à noite: segunda
