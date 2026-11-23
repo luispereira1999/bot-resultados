@@ -447,6 +447,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "AMTM|2026-11-23": {
+   "detetado": "2026-11-23T21:40:19.763982+00:00",
+   "entregue": "2026-11-23T16:39:11-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "AMTM",
+    "nome": "Amentum Holdings, Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 5041722441.257948,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 0.66,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
