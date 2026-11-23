@@ -49,6 +49,7 @@ DEFAULTS = {
     "minutos_antes_abertura_resumo": 30,
     "dias_calendario": 3,
     "max_empresas_por_dia_no_resumo": 15,
+    "alerta_cedo_sec": True,
 }
 
 LOG_COLUMNS = [
@@ -59,6 +60,9 @@ LOG_COLUMNS = [
     "dia_reacao", "fecho_anterior", "abertura", "maximo", "fecho",
     "abertura_vs_fecho_ant_pct", "fecho_vs_abertura_pct", "maximo_vs_abertura_pct",
     "atraso_min",  # minutos entre a hora marcada do relatório e o bot o ver publicado no Yahoo
+    "atraso_sec_min",  # minutos entre a hora marcada e o bot ver o comunicado na SEC
+    "eps_comunicado",  # EPS lido do comunicado (vazio se não houve um valor claro)
+    "alerta_cedo",  # sim se o alerta saiu com o EPS do comunicado, antes do Yahoo
 ]
 
 MOMENTO_PT = {"BMO": "antes da abertura", "AMC": "depois do fecho", "TNS": "hora não indicada"}
@@ -490,7 +494,8 @@ def task_morning(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
     notify(cfg, f"Resultados: próximos {days} dias", "\n".join(lines).strip(), tags=["calendar"], dry=dry)
 
 
-def evaluate(cfg: dict, ev: dict) -> dict:
+def evaluate(cfg: dict, ev: dict, details: bool = True) -> dict | None:
+    """Classifica um resultado. Com details=False não vai buscar as expectativas dos analistas (mais rápido)."""
     t = yf.Ticker(ev["simbolo"])
     try:
         info = t.info or {}
@@ -499,7 +504,7 @@ def evaluate(cfg: dict, ev: dict) -> dict:
     move, move_kind = price_move(info, ev)
     if move is None:
         return None  # ainda sem preço depois do relatório: volta a tentar na próxima corrida
-    exp = expectations(t)
+    exp = expectations(t) if details else {}
     name = info.get("shortName") or info.get("longName") or ev["nome"]
     surprise = ev["surpresa_pct"]
     if surprise is None and ev["eps_real"] is not None and ev["eps_estimado"]:
@@ -512,10 +517,17 @@ def evaluate(cfg: dict, ev: dict) -> dict:
             "bateu_mas_cai": beat and not up and not late}
 
 
-def alert_text(r: dict, guid: dict | None = None) -> tuple[str, str]:
+def alert_text(r: dict, guid: dict | None = None, early: dict | None = None) -> tuple[str, str]:
+    """Texto do alerta. `early` = dados do comunicado na SEC quando o alerta sai antes de o Yahoo ter o EPS."""
     icon = "🟢" if r["positivo"] else "⚠️"
     title = f"{icon} {r['simbolo']} bateu {fmt_pct(r['surpresa_pct'])} · {r['movimento_tipo']} {fmt_pct(r['movimento_pct'])}"
-    lines = [
+    lines = []
+    if early:
+        title += " ⚡"
+        filed = datetime.fromisoformat(early["entregue"]).astimezone(LIS)
+        lines.append(f"⚡ Antecipado: EPS lido do comunicado entregue na SEC às {filed:%H:%M} "
+                     f"({'ajustado' if early.get('ajustado') else 'GAAP'}). Confirmo quando o Yahoo publicar.")
+    lines += [
         f"{r['nome']} ({r['mercado']}) · {MOMENTO_PT.get(r['momento'], '')}",
         f"EPS: {r['eps_real']:.2f} vs {r['eps_estimado']:.2f} estimado ({fmt_pct(r['surpresa_pct'])})"
         if r["eps_real"] is not None and r["eps_estimado"] is not None else "EPS: ?",
@@ -542,14 +554,105 @@ def alert_text(r: dict, guid: dict | None = None) -> tuple[str, str]:
     return title, "\n".join(lines)
 
 
+def positive_entry(r: dict) -> dict:
+    return {"simbolo": r["simbolo"], "nome": r["nome"], "mercado": r["mercado"], "dia": r["dia"],
+            "quando": r["quando"], "momento": r["momento"], "surpresa_pct": r["surpresa_pct"]}
+
+
+def check_sec(cfg: dict, state: dict, pending: list[dict], now: datetime, dry: bool) -> None:
+    """Deteção rápida: o comunicado aparece na SEC minutos depois de sair; o EPS no Yahoo demora horas.
+
+    Para as empresas do calendário ainda sem EPS no Yahoo, procura o comunicado no feed da SEC, lê o EPS
+    e, se o resultado for positivo (surpresa e subida de preço), avisa logo. O Yahoo confirma mais tarde.
+    """
+    if not cfg.get("alerta_cedo_sec") or not cfg.get("sec_contacto"):
+        return
+    import guidance
+    ua = guidance.identify(cfg["sec_contacto"])
+    sec: dict = state.setdefault("sec", {})
+    seen = state.get("vistos", {})
+    positives: dict = state.setdefault("positivos", {})
+
+    by_cik: dict[int, list[dict]] = {}
+    for ev in pending:
+        key = f"{ev['simbolo']}|{ev['dia']}"
+        if key in seen or key in sec:
+            continue
+        cik = guidance.cik_for(ev["simbolo"], ua)
+        if cik:
+            by_cik.setdefault(cik, []).append(ev)
+    if by_cik:
+        last = state.get("sec_ultimo")
+        # 10 min de folga: uma entrega pode aparecer no feed com a hora de aceitação um pouco antes da leitura
+        since = datetime.fromisoformat(last) - timedelta(minutes=10) if last else now - timedelta(hours=6)
+        for f in guidance.recent_results(ua, since):
+            for ev in by_cik.get(f["cik"], []):
+                key = f"{ev['simbolo']}|{ev['dia']}"
+                if key in sec or abs((f["entregue"].astimezone(LIS).date() - date.fromisoformat(ev["dia"])).days) > 1:
+                    continue
+                try:
+                    url, text = guidance.release_text(f["cik"], f["accession"], ua)
+                except Exception:  # uma entrega estragada não pode bloquear as outras em todas as passagens
+                    log_error(f"SEC: não consegui ler o comunicado de {ev['simbolo']}")
+                    sec[key] = {"detetado": now.isoformat(), "entregue": f["entregue"].isoformat(), "url": None,
+                                "eps": None, "frases": [], "evento": ev, "estado": "erro"}
+                    continue
+                eps = guidance.eps_from_release(text)
+                sec[key] = {"detetado": now.isoformat(), "entregue": f["entregue"].isoformat(), "url": url,
+                            "eps": eps["eps"] if eps else None, "ajustado": bool(eps and eps["ajustado"]),
+                            "frase": eps["frase"] if eps else None,
+                            "frases": guidance.extract(text) if cfg.get("guidance_no_alerta") else [],
+                            "evento": ev, "estado": "a seguir" if eps else "sem EPS"}
+                print(f"SEC: {ev['simbolo']} entregou às {f['entregue'].astimezone(LIS):%H:%M}, "
+                      f"EPS {'lido ' + str(eps['eps']) if eps else 'não lido'}")
+    state["sec_ultimo"] = now.isoformat()
+
+    # comunicados com EPS lido, ainda sem decisão: alerta se bateu e o preço já reage
+    for key, s in sec.items():
+        if s["estado"] != "a seguir" or key in seen:
+            continue
+        ev = s["evento"]
+        if not ev.get("eps_estimado"):
+            s["estado"] = "sem estimativa"
+            continue
+        surprise = (s["eps"] - ev["eps_estimado"]) / abs(ev["eps_estimado"]) * 100
+        if surprise < cfg["surpresa_eps_minima_pct"]:
+            s["estado"] = "não bateu"
+            continue
+        try:
+            r = evaluate(cfg, {**ev, "eps_real": s["eps"], "surpresa_pct": surprise}, details=False)
+        except Exception:
+            log_error(f"SEC: falhou a avaliação de {key}")
+            continue
+        if r is None:
+            continue  # ainda sem negócios depois do comunicado
+        if r["movimento_tipo"] == "tardio":
+            s["estado"] = "tardio"
+            continue
+        if not r["positivo"]:
+            continue  # o preço ainda não sobe o suficiente: volta a ver na próxima passagem
+        r.update(expectations(yf.Ticker(ev["simbolo"])))
+        title, body = alert_text(r, {"frases": s["frases"], "url": s["url"]}, early=s)
+        click, acts = links(r, s["url"])
+        notify(cfg, title, body, tags=["zap", "chart_with_upwards_trend"], priority=4, click=click, actions=acts, dry=dry)
+        s.update(estado="alertado", surpresa_pct=surprise, movimento_pct=r["movimento_pct"])
+        positives[key] = positive_entry(r)
+
+
 def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
     today = now.date()
     since = today - timedelta(days=LOOKBACK_DAYS)  # cobre o fim de semana e dias com o PC desligado
     seen: dict = state.setdefault("vistos", {})
     positives: dict = state.setdefault("positivos", {})
+    sec: dict = state.setdefault("sec", {})
 
-    candidates = [e for e in us_events(since, today, cfg["capitalizacao_minima_usd"])
-                  if e["eps_real"] is not None]
+    us = us_events(since, today, cfg["capitalizacao_minima_usd"])
+    candidates = [e for e in us if e["eps_real"] is not None]
+    pending = [e for e in us if e["eps_real"] is None and e["dia"] >= (today - timedelta(days=1)).isoformat()]
+    try:
+        check_sec(cfg, state, pending, now, dry)
+    except Exception:  # a deteção rápida é um extra: se falhar, o Yahoo continua a funcionar
+        log_error("Deteção pela SEC falhou")
     for ev in refresh_eu(state, today, int(cfg["dias_calendario"])):
         if since.isoformat() <= ev["dia"] <= today.isoformat():
             key = f"{ev['simbolo']}|{ev['dia']}"
@@ -573,21 +676,33 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
             continue
         if r is None:
             continue
-        send = r["positivo"] or (r["bateu_mas_cai"] and cfg["alertar_bateu_mas_cai"])
+        s = sec.get(key)
+        early = bool(s and s["estado"] == "alertado")
+        send = not early and (r["positivo"] or (r["bateu_mas_cai"] and cfg["alertar_bateu_mas_cai"]))
         if send:
-            guid = fetch_guidance(cfg, r)
+            guid = {"frases": s["frases"], "url": s["url"]} if s and s.get("url") else fetch_guidance(cfg, r)
             title, body = alert_text(r, guid)
             click, acts = links(r, guid["url"] if guid else None)
             notify(cfg, title, body, tags=["chart_with_upwards_trend"] if r["positivo"] else ["warning"],
                    priority=4 if r["positivo"] else 3, click=click, actions=acts, dry=dry)
-        if r["positivo"]:
-            positives[key] = {"simbolo": r["simbolo"], "nome": r["nome"], "mercado": r["mercado"],
-                              "dia": r["dia"], "quando": r["quando"], "momento": r["momento"],
-                              "surpresa_pct": r["surpresa_pct"]}
+        surprise = r["surpresa_pct"]
+        if early and (surprise is None or surprise < cfg["surpresa_eps_minima_pct"]):
+            # o alerta antecipado leu mal o EPS ou o Yahoo usa outra base: avisa e tira do resumo pre-market
+            notify(cfg, f"↩️ {r['simbolo']}: o alerta antecipado não se confirma",
+                   f"Yahoo: EPS {r['eps_real']} vs {r['eps_estimado']} estimado ({fmt_pct(surprise)}).\n"
+                   f"O comunicado indicava {s['eps']} ({fmt_pct(s.get('surpresa_pct'))}).\n"
+                   f"Preço agora: {fmt_pct(r['movimento_pct'])} ({r['movimento_tipo']}).",
+                   tags=["leftwards_arrow_with_hook"], priority=4, click=links(r)[0], dry=dry)
+            positives.pop(key, None)
+        elif r["positivo"]:
+            positives[key] = positive_entry(r)
         if not dry:
             delay = round((now - datetime.fromisoformat(r["quando"])).total_seconds() / 60)
+            delay_sec = round((datetime.fromisoformat(s["detetado"]) - datetime.fromisoformat(r["quando"])).total_seconds() / 60) if s else None
             append_log({**r, "atraso_min": delay, "registado_em": now.strftime("%Y-%m-%d %H:%M"), "data_resultados": r["dia"],
-                        "positivo": "sim" if r["positivo"] else "não", "alertado": "sim" if send else "não"})
+                        "positivo": "sim" if r["positivo"] else "não", "alertado": "sim" if send or early else "não",
+                        "atraso_sec_min": delay_sec, "eps_comunicado": s.get("eps") if s else None,
+                        "alerta_cedo": "sim" if early else "não"})
         seen[key] = now.isoformat()
 
     new = sum(1 for e in candidates if seen.get(f"{e['simbolo']}|{e['dia']}") == now.isoformat())
@@ -596,7 +711,7 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
 
     # limpa entradas com mais de 10 dias
     cutoff = (today - timedelta(days=10)).isoformat()
-    for d in (seen, positives):
+    for d in (seen, positives, sec):
         for k in [k for k in d if k.split("|")[1] < cutoff]:
             del d[k]
 

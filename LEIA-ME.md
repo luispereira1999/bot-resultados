@@ -8,6 +8,7 @@ Avisa no telemóvel (app **ntfy**) sobre os relatórios de resultados de ações
 |---|---|
 | 08:30, seg–sex | Calendário dos próximos 3 dias: empresas, hora (🌅 antes da abertura / 🌙 depois do fecho) e EPS estimado |
 | Assim que sai um resultado | 🟢 só se for **positivo**: EPS acima da estimativa (≥ 5%) **e** preço a subir (≥ 2%) no pre-market/after-hours. Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
+| Minutos depois do comunicado (⚡) | O mesmo alerta, antecipado: o bot lê o EPS no comunicado entregue na SEC, sem esperar horas pelo Yahoo. Quando o Yahoo publica, confirma em silêncio ou manda ↩️ se não se confirmar |
 | 30 min antes da abertura de Nova Iorque (normalmente 14:00) | Resumo dos positivos com o movimento atualizado |
 
 Resultados que o bot só apanha depois de a sessão de reação acabar (ex.: PC desligado) ficam no registo como `tardio` e não geram aviso.
@@ -52,6 +53,15 @@ Alternativa sem nuvem: `agendar.ps1` cria uma tarefa no Windows que corre o bot 
 ## Teste histórico
 
 `backtest.py` mede o que as ações fizeram depois dos resultados dos últimos 2 anos e grava `data/historico_resumo.json` (mostrado na dashboard) e `data/historico.csv` (todos os casos). Corre na nuvem no dia 1 de cada mês, ou à mão em Actions → Teste histórico → *Run workflow*.
+
+## Alerta antecipado pela SEC (⚡)
+
+O Yahoo só mostra o EPS horas depois do comunicado (nos relatórios depois do fecho, perto das 01:30 de Lisboa, quando o after-hours já acabou). A cada passagem, o bot lê o feed de entregas recentes da SEC. Quando uma empresa do calendário entrega o comunicado de resultados (8-K com o ponto 2.02, ou 6-K), o bot lê o EPS do trimestre no texto (o ajustado, se houver). Se bater a estimativa e o preço subir o suficiente, avisa logo.
+
+- Só avisa quando o EPS está claro no comunicado (cerca de 40% dos casos). Nos outros espera pelo Yahoo, como antes.
+- Num teste com 126 comunicados reais, a decisão "bateu" coincidiu com a do Yahoo em 90% dos casos lidos, e 2 em 28 alertas teriam sido falsos. Por isso, quando o Yahoo publica, o bot confirma (sem novo aviso) ou manda ↩️ *não se confirma* e tira a ação do resumo pre-market.
+- O registo ganha as colunas `atraso_sec_min` (minutos até ver o comunicado na SEC), `eps_comunicado` e `alerta_cedo`, para comparar com o Yahoo.
+- Desligar: `"alerta_cedo_sec": false` em `config.json`. Usa o mesmo email de contacto da SEC do excerto do guidance.
 
 ## Excerto do guidance
 

@@ -171,3 +171,150 @@ def test_alerta_inclui_o_guidance_quando_existe():
     assert "• Expects 2027 revenue of $5 billion." in body
     assert "lê a secção" in bot.alert_text(r)[1]
     assert bot.links(r, "https://x")[1][0]["url"] == "https://x"
+
+
+# ---------------------------------------------------------------- deteção rápida pela SEC
+
+FEED = """<?xml version="1.0" encoding="ISO-8859-1" ?><feed xmlns="http://www.w3.org/2005/Atom">
+<entry><title>8-K - XYZ CORP (0000001234) (Filer)</title>
+<summary type="html"> &lt;b&gt;Filed:&lt;/b&gt; 2026-11-10 &lt;b&gt;AccNo:&lt;/b&gt; 0000001234-26-000001
+&lt;br&gt;Item 2.02: Results of Operations and Financial Condition
+&lt;br&gt;Item 9.01: Financial Statements and Exhibits</summary>
+<updated>2026-11-10T16:06:00-05:00</updated><category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+<id>urn:tag:sec.gov,2008:accession-number=0000001234-26-000001</id></entry>
+<entry><title>8-K - OUTRA INC (0000005678) (Filer)</title>
+<summary type="html">&lt;br&gt;Item 5.02: Departure of Directors</summary>
+<updated>2026-11-10T16:04:00-05:00</updated><category scheme="https://www.sec.gov/" label="form type" term="8-K"/>
+<id>urn:tag:sec.gov,2008:accession-number=0000005678-26-000009</id></entry></feed>"""
+
+
+def test_feed_da_sec_le_cik_items_e_hora():
+    import guidance
+    e = guidance.parse_feed(FEED)
+    assert [x["cik"] for x in e] == [1234, 5678]
+    assert e[0]["items"] == ["2.02", "9.01"] and e[0]["accession"] == "0000001234-26-000001"
+    assert e[0]["entregue"].astimezone(bot.LIS).strftime("%d %H:%M") == "10 21:06" and e[0]["nome"] == "XYZ CORP"
+
+
+@pytest.mark.parametrize("texto,eps,ajustado", [
+    ("Third quarter 2026 adjusted diluted EPS of $1.32, up 10%. GAAP diluted EPS of $1.05.", 1.32, True),
+    ("Net income for the third quarter was $50.1 million, or $0.45 per diluted share.", 0.45, False),
+    ("Net loss for the third quarter of 2026 was $66.2 million, or $1.05 per share.", -1.05, False),
+    ("Non-GAAP diluted earnings per ADS was RMB8.10 (US$1.21) in the quarter.", 8.10, True),
+    ("Diluted EPS increased 21% to $2.38 in the third quarter.", 2.38, False),
+    ("Net loss per share attributable to common stockholders - diluted $ (0.15)", -0.15, False),
+])
+def test_eps_do_comunicado(texto, eps, ajustado):
+    import guidance
+    r = guidance.eps_from_release(texto)
+    assert r is not None and r["eps"] == pytest.approx(eps) and r["ajustado"] == ajustado
+
+
+@pytest.mark.parametrize("texto", [
+    "The Board declared a quarterly dividend of $0.25 per share.",                        # dividendo
+    "Shares were repurchased at an average price of $42.64 per share.",                   # preço
+    "The company expects full-year adjusted EPS of $4.10 to $4.20.",                      # previsão
+    "Adjusted EPS of $3.44.\nAdjusted EPS of $0.91.",                                     # trimestre e ano sem distinção
+    "Revenue grew 12% to $1.2 billion.",                                                  # sem EPS
+    "Net income was $10 million, compared to a net loss of $2 million in 2025, or $(0.02) per share.",  # ano anterior
+])
+def test_eps_do_comunicado_abstem_se_quando_nao_ha_valor_claro(texto):
+    import guidance
+    assert guidance.eps_from_release(texto) is None
+
+
+@pytest.fixture
+def sec_env(monkeypatch, tmp_path):
+    """Bot com um relatório pendente da XYZ (depois do fecho de 10/11), SEC e Yahoo simulados."""
+    import guidance
+    sent = []
+    cfg = {**bot.DEFAULTS, "sec_contacto": "x", "guidance_no_alerta": True}
+    ev = {**event(2026, 11, 10, 16, 5), "simbolo": "XYZ", "nome": "XYZ", "mercado": "NASDAQ", "capitalizacao": 5e9,
+          "dia": "2026-11-10", "momento": "AMC", "eps_estimado": 1.0, "eps_real": None, "surpresa_pct": None}
+    monkeypatch.setattr(guidance, "cik_for", lambda s, ua: 1234 if s == "XYZ" else None)
+    monkeypatch.setattr(guidance, "recent_results", lambda ua, since: guidance.parse_feed(FEED))
+    release = {"texto": "Third quarter adjusted diluted EPS of $1.20. The company expects fiscal 2027 revenue of $5 billion."}
+    monkeypatch.setattr(guidance, "release_text", lambda cik, acc, ua: ("https://sec/x", release["texto"]))
+    move = {"post": 6.0}
+    monkeypatch.setattr(bot.yf, "Ticker", lambda s: FakeTicker(info("POST", ts(2026, 11, 10, 16), post=move["post"])))
+    monkeypatch.setattr(bot, "notify", lambda cfg, title, body, **kw: sent.append((title, body)))
+    monkeypatch.setattr(bot, "append_log", lambda row: None)
+    monkeypatch.setattr(bot, "refresh_eu", lambda *a: [])
+    monkeypatch.setattr(bot, "listed_symbols", lambda d: {})
+    yahoo = {"eventos": [ev]}
+    monkeypatch.setattr(bot, "us_events", lambda *a: [dict(e) for e in yahoo["eventos"]])
+    now = datetime(2026, 11, 10, 21, 10, tzinfo=bot.LIS)
+    return {"cfg": cfg, "ev": ev, "sent": sent, "move": move, "yahoo": yahoo, "release": release, "now": now}
+
+
+def test_alerta_antecipado_quando_o_comunicado_bate_e_o_preco_sobe(sec_env):
+    state = {}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    assert len(sec_env["sent"]) == 1
+    title, body = sec_env["sent"][0]
+    assert title.startswith("🟢 XYZ bateu +20.0%") and title.endswith("⚡")
+    assert "Antecipado" in body and "ajustado" in body and "expects fiscal 2027 revenue" in body
+    assert state["sec"]["XYZ|2026-11-10"]["estado"] == "alertado" and "XYZ|2026-11-10" in state["positivos"]
+
+
+def test_antecipado_espera_que_o_preco_suba(sec_env):
+    state = {}
+    sec_env["move"]["post"] = 0.5
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    assert sec_env["sent"] == [] and state["sec"]["XYZ|2026-11-10"]["estado"] == "a seguir"
+    sec_env["move"]["post"] = 4.0  # na passagem seguinte o preço já sobe
+    bot.task_check(sec_env["cfg"], state, sec_env["now"] + pd.Timedelta(minutes=2), dry=False)
+    assert len(sec_env["sent"]) == 1 and state["sec"]["XYZ|2026-11-10"]["estado"] == "alertado"
+
+
+def test_yahoo_confirma_sem_repetir_o_alerta(sec_env):
+    state = {}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    sec_env["yahoo"]["eventos"][0].update(eps_real=1.21, surpresa_pct=21.0)
+    bot.task_check(sec_env["cfg"], state, sec_env["now"] + pd.Timedelta(hours=4), dry=False)
+    assert len(sec_env["sent"]) == 1 and "XYZ|2026-11-10" in state["vistos"]
+
+
+def test_yahoo_desmente_e_o_bot_corrige(sec_env):
+    state = {}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    sec_env["yahoo"]["eventos"][0].update(eps_real=0.98, surpresa_pct=-2.0)
+    bot.task_check(sec_env["cfg"], state, sec_env["now"] + pd.Timedelta(hours=4), dry=False)
+    assert len(sec_env["sent"]) == 2 and "não se confirma" in sec_env["sent"][1][0]
+    assert "XYZ|2026-11-10" not in state["positivos"]
+
+
+def test_comunicado_sem_eps_claro_espera_pelo_yahoo(sec_env):
+    state = {}
+    sec_env["release"]["texto"] = "Revenue grew 12% to $1.2 billion."
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    assert sec_env["sent"] == [] and state["sec"]["XYZ|2026-11-10"]["estado"] == "sem EPS"
+    sec_env["yahoo"]["eventos"][0].update(eps_real=1.2, surpresa_pct=20.0)
+    bot.task_check(sec_env["cfg"], state, sec_env["now"] + pd.Timedelta(hours=4), dry=False)
+    assert len(sec_env["sent"]) == 1 and "Antecipado" not in sec_env["sent"][0][1]
+
+
+def test_falha_na_sec_nao_impede_o_yahoo(sec_env, monkeypatch):
+    import guidance
+    def boom(*a):
+        raise ConnectionError("SEC em baixo")
+    monkeypatch.setattr(guidance, "recent_results", boom)
+    monkeypatch.setattr(bot, "log_error", lambda msg: None)
+    monkeypatch.setattr(bot, "fetch_guidance", lambda cfg, r: None)
+    sec_env["yahoo"]["eventos"][0].update(eps_real=1.2, surpresa_pct=20.0)
+    bot.task_check(sec_env["cfg"], {}, sec_env["now"], dry=False)
+    assert len(sec_env["sent"]) == 1
+
+
+def test_comunicado_que_falha_nao_bloqueia_as_passagens_seguintes(sec_env, monkeypatch):
+    import guidance
+    calls = []
+    def broken(cik, acc, ua):
+        calls.append(acc)
+        raise ValueError("comunicado sem documentos html")
+    monkeypatch.setattr(guidance, "release_text", broken)
+    monkeypatch.setattr(bot, "log_error", lambda msg: None)
+    state = {}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    bot.task_check(sec_env["cfg"], state, sec_env["now"] + pd.Timedelta(minutes=2), dry=False)
+    assert len(calls) == 1 and state["sec"]["XYZ|2026-11-10"]["estado"] == "erro"

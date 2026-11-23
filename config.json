@@ -8,5 +8,6 @@
   "minutos_antes_abertura_resumo": 30,
   "dias_calendario": 3,
   "max_empresas_por_dia_no_resumo": 15,
-  "guidance_no_alerta": true
+  "guidance_no_alerta": true,
+  "alerta_cedo_sec": true
 }
