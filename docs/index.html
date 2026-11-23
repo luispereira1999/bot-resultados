@@ -141,20 +141,34 @@ function table(head, rows) {
   }</tbody></table>`;
 }
 
+// Ganho de quem comprou no alerta (pre-market ou after-hours) e vendeu na abertura / no fecho do dia da reação.
+// Usa o movimento no momento do alerta (registos novos) ou, nos antigos, o movimento quando o resultado foi registado.
+function fromAlert(r) {
+  if (!["pre-market", "after-hours"].includes(r.movimento_tipo)) return null;  // na sessão a abertura já passou
+  const a = num(r.movimento_alerta_pct) ?? num(r.movimento_pct), g = num(r.abertura_vs_fecho_ant_pct), oc = num(r.fecho_vs_abertura_pct);
+  if (a == null || g == null) return null;
+  const open = ((1 + g / 100) / (1 + a / 100) - 1) * 100;
+  return { open, close: oc == null ? null : ((1 + open / 100) * (1 + oc / 100) - 1) * 100 };
+}
+
 function renderTiles(log) {
   const pos = log.filter(r => r.positivo === "sim");
   const done = pos.filter(r => r.fecho !== "");
-  const oc = done.map(r => num(r.fecho_vs_abertura_pct)).filter(v => v != null);
-  const hi = done.map(r => num(r.maximo_vs_abertura_pct)).filter(v => v != null);
+  const fa = done.map(fromAlert).filter(x => x);
+  const toOpen = fa.map(x => x.open), toClose = fa.map(x => x.close).filter(v => v != null);
+  const early = pos.filter(r => r.alerta_cedo === "sim").length;
   const delays = log.filter(r => r.movimento_tipo !== "tardio").map(r => num(r.atraso_min)).filter(v => v != null && v >= 0);
-  const avg = oc.length ? oc.reduce((a, b) => a + b, 0) / oc.length : null;
-  const med = median(delays);
+  const secDelays = log.map(r => num(r.atraso_sec_min)).filter(v => v != null && v >= 0);
+  const mean = v => v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  const signed = v => v == null ? "–" : `${v > 0 ? "+" : ""}${fmt(v, 2)}%`;
+  const med = median(delays), medSec = median(secDelays);
   const tiles = [
-    ["Alertas positivos", pos.length, `${done.length} com sessão seguinte fechada`],
-    ["Fecharam acima da abertura", oc.length ? `${oc.filter(v => v > 0).length} de ${oc.length}` : "–", "entre os alertas positivos"],
-    ["Comprar na abertura, vender no fecho", avg == null ? "–" : `${avg > 0 ? "+" : ""}${fmt(avg, 2)}%`, "média por alerta, sem comissões"],
-    ["Chegaram a +5% depois da abertura", hi.length ? `${hi.filter(v => v >= 5).length} de ${hi.length}` : "–", "máximo do dia face à abertura"],
-    ["Atraso típico do Yahoo", med == null ? "–" : `${fmt(med, 0)} min`, delays.length ? `mediana de ${delays.length} resultados` : "ainda sem medições"],
+    ["Alertas positivos", pos.length, `${early} antecipados ⚡ · ${done.length} com sessão seguinte fechada`],
+    ["Do alerta à abertura", signed(mean(toOpen)), toOpen.length ? `média de ${toOpen.length} · mediana ${signed(median(toOpen))} · a estratégia` : "ainda sem casos"],
+    ["Subiram até à abertura", toOpen.length ? `${toOpen.filter(v => v > 0).length} de ${toOpen.length}` : "–", "comprando no alerta"],
+    ["Do alerta ao fecho", signed(mean(toClose)), "se ficasse com a ação até ao fecho"],
+    ["Atraso até ao alerta", med == null ? "–" : `${fmt(med, 0)} min`,
+      medSec == null ? `Yahoo, mediana de ${delays.length}` : `Yahoo · SEC ⚡: ${fmt(medSec, 0)} min (mediana de ${secDelays.length})`],
   ];
   document.getElementById("tiles").innerHTML = tiles.map(([l, v, n]) =>
     `<div class="tile"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
@@ -261,11 +275,14 @@ function renderPremarket(p) {
 function renderPositives(log) {
   const rows = log.filter(r => r.positivo === "sim").sort((a, b) => b.registado_em.localeCompare(a.registado_em));
   const head = [{ t: "Relatório" }, { t: "Símbolo" }, { t: "Empresa", cls: "name" }, { t: "Surpresa EPS", num: 1 }, { t: "Preço no alerta", num: 1 },
-    { t: "Abertura vs fecho anterior", num: 1 }, { t: "Abertura → fecho", num: 1 }, { t: "Abertura → máximo", num: 1 }];
-  document.getElementById("positives").innerHTML = table(head, rows.map(r => [
-    `${esc(r.data_resultados)} <span class="sub">${MOMENTO[r.momento] || ""}</span>`, yahoo(r.simbolo), esc(r.nome),
-    pct(num(r.surpresa_pct)), `${pct(num(r.movimento_pct))} <span class="sub">${esc(r.movimento_tipo)}</span>`,
-    pct(num(r.abertura_vs_fecho_ant_pct)), pct(num(r.fecho_vs_abertura_pct)), pct(num(r.maximo_vs_abertura_pct))]));
+    { t: "Alerta → abertura", num: 1 }, { t: "Abertura → fecho", num: 1 }, { t: "Abertura → máximo", num: 1 }];
+  document.getElementById("positives").innerHTML = table(head, rows.map(r => {
+    const fa = fromAlert(r), at = r.alerta_em ? esc(r.alerta_em.slice(11)) + " · " : "";
+    return [`${esc(r.data_resultados)} <span class="sub">${MOMENTO[r.momento] || ""}</span>`,
+      `${yahoo(r.simbolo)}${r.alerta_cedo === "sim" ? " ⚡" : ""}`, esc(r.nome), pct(num(r.surpresa_pct)),
+      `${pct(num(r.movimento_alerta_pct) ?? num(r.movimento_pct))} <span class="sub">${at}${esc(r.movimento_tipo)}</span>`,
+      fa && r.fecho !== "" ? pct(fa.open) : "–", pct(num(r.fecho_vs_abertura_pct)), pct(num(r.maximo_vs_abertura_pct))];
+  }));
 }
 
 function renderAll(log) {

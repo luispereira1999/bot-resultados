@@ -66,6 +66,8 @@ LOG_COLUMNS = [
     "atraso_sec_min",  # minutos entre a hora marcada e o bot ver o comunicado na SEC
     "eps_comunicado",  # EPS lido do comunicado (vazio se não houve um valor claro)
     "alerta_cedo",  # sim se o alerta saiu com o EPS do comunicado, antes do Yahoo
+    "alerta_em",  # quando o alerta foi enviado (Lisboa)
+    "movimento_alerta_pct",  # movimento do preço face ao fecho anterior no momento do alerta (base do "alerta → abertura")
 ]
 
 MOMENTO_PT = {"BMO": "antes da abertura", "AMC": "depois do fecho", "TNS": "hora não indicada"}
@@ -532,7 +534,7 @@ def evaluate(cfg: dict, ev: dict, details: bool = True) -> dict | None:
             "bateu_mas_cai": beat and not up and not late}
 
 
-def alert_text(r: dict, guid: dict | None = None, early: dict | None = None) -> tuple[str, str]:
+def alert_text(r: dict, guid: dict | None = None, early: dict | None = None, hint: str | None = None) -> tuple[str, str]:
     """Texto do alerta. `early` = dados do comunicado na SEC quando o alerta sai antes de o Yahoo ter o EPS."""
     icon = "🟢" if r["positivo"] else "⚠️"
     title = f"{icon} {r['simbolo']} bateu {fmt_pct(r['surpresa_pct'])} · {r['movimento_tipo']} {fmt_pct(r['movimento_pct'])}"
@@ -566,12 +568,47 @@ def alert_text(r: dict, guid: dict | None = None, early: dict | None = None) -> 
         lines += [f"• {s}" for s in guid["frases"]]
     else:
         lines.append("Guidance: lê a secção 'Outlook' no comunicado.")
+    if hint:
+        lines.append(hint)
     return title, "\n".join(lines)
 
 
-def positive_entry(r: dict) -> dict:
+def positive_entry(r: dict, now: datetime) -> dict:
     return {"simbolo": r["simbolo"], "nome": r["nome"], "mercado": r["mercado"], "dia": r["dia"],
-            "quando": r["quando"], "momento": r["momento"], "surpresa_pct": r["surpresa_pct"]}
+            "quando": r["quando"], "momento": r["momento"], "surpresa_pct": r["surpresa_pct"],
+            "alerta_em": now.isoformat(), "movimento_alerta_pct": r["movimento_pct"]}
+
+
+_premarket_memo: dict = {}
+
+
+def historical_hint(r: dict, now: datetime, early: bool) -> str | None:
+    """Ganho histórico de comprar agora e vender na abertura, para o critério do bot (data/premarket_resumo.json).
+
+    Escolhe o momento de compra do teste do pre-market mais parecido com o de agora: after-hours às 17:00 de
+    Nova Iorque (alerta antecipado), pre-market às 08:00 ou às 09:00. Na sessão normal não diz nada.
+    """
+    kind = r.get("movimento_tipo")
+    if kind == "after-hours":
+        entry = "ah17" if early else "pm08"  # sem ⚡, o alerta do Yahoo chega com o after-hours já fechado
+    elif kind == "pre-market":
+        ny = now.astimezone(NY)
+        entry = "pm08" if (ny.hour, ny.minute) < (8, 30) else "pm09"
+    else:
+        return None
+    path = DATA / "premarket_resumo.json"
+    try:
+        if _premarket_memo.get("mtime") != path.stat().st_mtime:
+            _premarket_memo.update(mtime=path.stat().st_mtime, data=json.loads(path.read_text(encoding="utf-8")))
+        b = _premarket_memo["data"]["entradas"][entry]["bot"]
+    except (OSError, KeyError, ValueError):
+        return None
+    if b.get("n", 0) < 30:
+        return None
+    moment = {"ah17": "1 h depois do comunicado", "pm08": "às 08:00 de Nova Iorque", "pm09": "às 09:00 de Nova Iorque"}[entry]
+    action = "comprar no pre-market de amanhã" if kind == "after-hours" and not early else "comprar já"
+    return (f"💡 Estratégia: {action} e vender na abertura. No teste histórico, comprar {moment} deu "
+            f"{fmt_pct(b['media_abertura'])} até à abertura ({b['pct_sobe_ate_abertura']:.0f}% subiram, {b['n']} casos).")
 
 
 HEALTH_NAMES = {"bot": "O bot", "sec": "A deteção rápida pela SEC (⚡)"}
@@ -701,11 +738,11 @@ def check_sec(cfg: dict, state: dict, pending: list[dict], now: datetime, dry: b
         if not r["positivo"]:
             continue  # o preço ainda não sobe o suficiente: volta a ver na próxima passagem
         r.update(expectations(yf.Ticker(ev["simbolo"])))
-        title, body = alert_text(r, {"frases": s["frases"], "url": s["url"]}, early=s)
+        title, body = alert_text(r, {"frases": s["frases"], "url": s["url"]}, early=s, hint=historical_hint(r, now, early=True))
         click, acts = links(r, s["url"])
         notify(cfg, title, body, tags=["zap", "chart_with_upwards_trend"], priority=4, click=click, actions=acts, dry=dry)
-        s.update(estado="alertado", surpresa_pct=surprise, movimento_pct=r["movimento_pct"])
-        positives[key] = positive_entry(r)
+        s.update(estado="alertado", surpresa_pct=surprise, movimento_pct=r["movimento_pct"], alertado_em=now.isoformat())
+        positives[key] = positive_entry(r, now)
 
 
 def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
@@ -752,7 +789,7 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
         send = not early and (r["positivo"] or (r["bateu_mas_cai"] and cfg["alertar_bateu_mas_cai"]))
         if send:
             guid = {"frases": s["frases"], "url": s["url"]} if s and s.get("url") else fetch_guidance(cfg, r)
-            title, body = alert_text(r, guid)
+            title, body = alert_text(r, guid, hint=historical_hint(r, now, early=False) if r["positivo"] else None)
             click, acts = links(r, guid["url"] if guid else None)
             notify(cfg, title, body, tags=["chart_with_upwards_trend"] if r["positivo"] else ["warning"],
                    priority=4 if r["positivo"] else 3, click=click, actions=acts, dry=dry)
@@ -765,15 +802,25 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
                    f"Preço agora: {fmt_pct(r['movimento_pct'])} ({r['movimento_tipo']}).",
                    tags=["leftwards_arrow_with_hook"], priority=4, click=links(r)[0], dry=dry)
             positives.pop(key, None)
+        elif early and key in positives:
+            positives[key]["surpresa_pct"] = surprise  # mantém a hora e o preço do alerta antecipado
         elif r["positivo"]:
-            positives[key] = positive_entry(r)
+            positives[key] = positive_entry(r, now)
+        if early:
+            alert_at, alert_move = s.get("alertado_em"), s.get("movimento_pct")
+        elif send:
+            alert_at, alert_move = now.isoformat(), r["movimento_pct"]
+        else:
+            alert_at = alert_move = None
         if not dry:
             delay = round((now - datetime.fromisoformat(r["quando"])).total_seconds() / 60)
             delay_sec = round((datetime.fromisoformat(s["detetado"]) - datetime.fromisoformat(r["quando"])).total_seconds() / 60) if s else None
             append_log({**r, "atraso_min": delay, "registado_em": now.strftime("%Y-%m-%d %H:%M"), "data_resultados": r["dia"],
                         "positivo": "sim" if r["positivo"] else "não", "alertado": "sim" if send or early else "não",
                         "atraso_sec_min": delay_sec, "eps_comunicado": s.get("eps") if s else None,
-                        "alerta_cedo": "sim" if early else "não"})
+                        "alerta_cedo": "sim" if early else "não",
+                        "alerta_em": datetime.fromisoformat(alert_at).astimezone(LIS).strftime("%Y-%m-%d %H:%M") if alert_at else None,
+                        "movimento_alerta_pct": alert_move})
         seen[key] = now.isoformat()
 
     new = sum(1 for e in candidates if seen.get(f"{e['simbolo']}|{e['dia']}") == now.isoformat())
@@ -788,7 +835,11 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
 
 
 def task_premarket(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
-    """Antes da abertura de NY: positivos de ontem (depois do fecho) e de hoje (antes da abertura)."""
+    """Antes da abertura de NY: lembrete para vender na abertura os alertas de ontem à noite e de hoje cedo.
+
+    A estratégia do critério atual é comprar quando chega o alerta e vender na abertura; o resumo mostra, para
+    cada alerta, o movimento quando foi enviado, o de agora e quanto ganharia quem comprou no alerta.
+    """
     today, yesterday = now.date().isoformat(), (now.date() - timedelta(days=1)).isoformat()
     sel = [p for p in state.get("positivos", {}).values()
            if p["mercado"] != "Euronext" and p.get("quando")
@@ -801,9 +852,18 @@ def task_premarket(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
             move, kind = price_move(yf.Ticker(p["simbolo"]).info or {}, p)
         except Exception:
             move, kind = None, "?"
-        lines.append(f"{p['simbolo']}: EPS {fmt_pct(p['surpresa_pct'])} · {kind} {fmt_pct(move)}")
+        line = f"{p['simbolo']}: EPS {fmt_pct(p['surpresa_pct'])}"
+        a = p.get("movimento_alerta_pct")
+        if a is not None and p.get("alerta_em"):
+            at = datetime.fromisoformat(p["alerta_em"]).astimezone(LIS)
+            line += f" · no alerta ({at:%H:%M}) {fmt_pct(a)}"
+        line += f" · agora {fmt_pct(move)} ({kind})"
+        if a is not None and move is not None:
+            line += f" → {fmt_pct(((1 + move / 100) / (1 + a / 100) - 1) * 100)} desde o alerta"
+        lines.append(line)
     opens = ny_open(now).astimezone(LIS)
-    notify(cfg, f"Antes da abertura de Nova Iorque ({opens:%H:%M})", "\n".join(lines),
+    lines.append("\nEstratégia: vender na abertura (ordem ao preço de abertura).")
+    notify(cfg, f"🔔 Vender na abertura de Nova Iorque ({opens:%H:%M})", "\n".join(lines),
            tags=["bell"], priority=4, dry=dry)
 
 

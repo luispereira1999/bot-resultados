@@ -9,7 +9,7 @@ Avisa no telemóvel (app **ntfy**) sobre os relatórios de resultados de ações
 | 08:30, seg–sex | Calendário dos próximos 3 dias: empresas, hora (🌅 antes da abertura / 🌙 depois do fecho) e EPS estimado |
 | Assim que sai um resultado | 🟢 só se for **positivo**: EPS bem acima da estimativa (≥ 10%) **e** preço ainda quase parado no pre-market/after-hours (entre −2% e +2%), ou seja, o mercado ainda não reagiu. No teste do pre-market, comprar no after-hours 1 hora depois do comunicado e vender na abertura deu +1,0% em média (ver abaixo); quanto mais cedo, melhor. Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
 | Minutos depois do comunicado (⚡) | O mesmo alerta, antecipado: o bot lê o EPS no comunicado entregue na SEC, sem esperar horas pelo Yahoo. Quando o Yahoo publica, confirma em silêncio ou manda ↩️ se não se confirmar |
-| 30 min antes da abertura de Nova Iorque (normalmente 14:00) | Resumo dos positivos com o movimento atualizado |
+| 30 min antes da abertura de Nova Iorque (normalmente 14:00) | 🔔 Lembrete para vender na abertura: para cada alerta, o movimento quando foi enviado, o de agora e o ganho desde o alerta |
 
 Resultados que o bot só apanha depois de a sessão de reação acabar (ex.: PC desligado) ficam no registo como `tardio` e não geram aviso.
 
@@ -18,6 +18,8 @@ Todos os resultados (positivos ou não) ficam em `data/registo.csv`. Ao sábado 
 ## Dashboard
 
 https://luispereira1999.github.io/bot-resultados/ mostra os próximos relatórios, os alertas enviados e o que cada ação fez a seguir. A página (`docs/index.html`) lê `data/registo.csv` e `data/calendario.json` diretamente do repositório, por isso atualiza-se sozinha. O bot preenche a reação de cada ação todas as noites, depois do fecho de Nova Iorque.
+
+Os números do topo medem a estratégia do critério atual: comprar quando chega o alerta (after-hours ou pre-market) e vender na abertura (**do alerta à abertura**). Usam o movimento do preço no momento do alerta, guardado nas colunas `alerta_em` e `movimento_alerta_pct` do registo. Cada alerta inclui o ganho histórico de comprar naquele momento, tirado do teste do pre-market.
 
 ## Instalar a app ntfy
 

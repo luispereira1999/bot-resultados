@@ -510,3 +510,63 @@ def test_antecipado_le_o_eps_da_tabela_quando_o_texto_nao_chega(sec_env):
     state = {}
     bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
     assert state["sec"]["XYZ|2026-11-10"]["eps"] == 1.32
+
+
+# ---------------------------------------------------------------- estratégia: comprar no alerta, vender na abertura
+
+def _premarket_resumo(tmp_path, monkeypatch):
+    import json as _json
+    resumo = {"entradas": {e: {"bot": {"n": 500, "media_abertura": v, "pct_sobe_ate_abertura": 60.0}}
+                           for e, v in (("ah17", 1.01), ("pm08", 0.32), ("pm09", 0.16))}}
+    (tmp_path / "premarket_resumo.json").write_text(_json.dumps(resumo), encoding="utf-8")
+    monkeypatch.setattr(bot, "DATA", tmp_path)
+    bot._premarket_memo.clear()
+
+
+@pytest.mark.parametrize("kind,early,ny_time,expected", [
+    ("after-hours", True, (16, 30), "+1.0%"),    # alerta ⚡ uma hora depois do comunicado
+    ("after-hours", False, (20, 35), "+0.3%"),   # alerta do Yahoo com o after-hours fechado: compra de manhã
+    ("pre-market", False, (7, 45), "+0.3%"),
+    ("pre-market", False, (9, 5), "+0.2%"),
+    ("sessão", False, (11, 0), None),           # a abertura já passou
+])
+def test_dica_historica_escolhe_o_momento_de_compra(tmp_path, monkeypatch, kind, early, ny_time, expected):
+    _premarket_resumo(tmp_path, monkeypatch)
+    now = datetime(2026, 11, 10, *ny_time, tzinfo=bot.NY)
+    hint = bot.historical_hint({"movimento_tipo": kind}, now, early)
+    assert (hint is None) if expected is None else (expected in hint and "vender na abertura" in hint)
+
+
+def test_sem_resumo_do_pre_market_nao_ha_dica(tmp_path, monkeypatch):
+    monkeypatch.setattr(bot, "DATA", tmp_path)
+    bot._premarket_memo.clear()
+    assert bot.historical_hint({"movimento_tipo": "pre-market"}, datetime(2026, 11, 10, 8, tzinfo=bot.NY), False) is None
+
+
+def test_resumo_antes_da_abertura_mostra_o_ganho_desde_o_alerta(monkeypatch):
+    sent = []
+    monkeypatch.setattr(bot, "notify", lambda cfg, title, body, **kw: sent.append((title, body)))
+    monkeypatch.setattr(bot.yf, "Ticker", lambda s: FakeTicker(info("PRE", ts(2026, 11, 10, 16), pre=3.0)))
+    p = {**event(2026, 11, 10, 16, 5), "simbolo": "XYZ", "nome": "XYZ", "mercado": "NASDAQ", "dia": "2026-11-10",
+         "momento": "AMC", "surpresa_pct": 20.0, "movimento_alerta_pct": 1.0,
+         "alerta_em": datetime(2026, 11, 10, 17, 10, tzinfo=bot.NY).isoformat()}
+    now = datetime(2026, 11, 11, 9, 0, tzinfo=bot.NY)
+    bot.task_premarket(dict(bot.DEFAULTS), {"positivos": {"XYZ|2026-11-10": p}}, now, dry=False)
+    title, body = sent[0]
+    assert title.startswith("🔔 Vender na abertura")
+    assert "no alerta (22:10) +1.0%" in body and "agora +3.0% (pre-market)" in body and "+2.0% desde o alerta" in body
+
+
+def test_registo_guarda_a_hora_e_o_preco_do_alerta_antecipado(sec_env, monkeypatch):
+    rows = []
+    monkeypatch.setattr(bot, "append_log", rows.append)
+    state = {}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)       # alerta ⚡ com o preço a +6%
+    assert state["positivos"]["XYZ|2026-11-10"]["movimento_alerta_pct"] == 6.0
+    sec_env["move"]["post"] = 9.0                                            # quando o Yahoo publica, já vai em +9%
+    sec_env["yahoo"]["eventos"][0].update(eps_real=1.21, surpresa_pct=21.0)
+    later = sec_env["now"] + pd.Timedelta(hours=4)
+    bot.task_check(sec_env["cfg"], state, later, dry=False)
+    row = rows[-1]
+    assert row["alerta_cedo"] == "sim" and row["movimento_alerta_pct"] == 6.0 and row["alerta_em"] == "2026-11-10 21:10"
+    assert state["positivos"]["XYZ|2026-11-10"]["movimento_alerta_pct"] == 6.0  # o Yahoo não apaga o preço do alerta
