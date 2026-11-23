@@ -7,7 +7,7 @@ Avisa no telemóvel (app **ntfy**) sobre os relatórios de resultados de ações
 | Quando (Lisboa) | Aviso |
 |---|---|
 | 08:30, seg–sex | Calendário dos próximos 3 dias: empresas, hora (🌅 antes da abertura / 🌙 depois do fecho) e EPS estimado |
-| Assim que sai um resultado | 🟢 só se for **positivo**: empresa grande (≥ 50 mil M$), EPS bem acima da estimativa (≥ 10%) **e** preço ainda sem grande reação no pre-market/after-hours (entre −5% e +5%). Foi o critério mais estável no teste histórico (ver abaixo). Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
+| Assim que sai um resultado | 🟢 só se for **positivo**: EPS bem acima da estimativa (≥ 10%) **e** preço ainda quase parado no pre-market/after-hours (entre −2% e +2%), ou seja, o mercado ainda não reagiu. No teste do pre-market, comprar no after-hours 1 hora depois do comunicado e vender na abertura deu +1,0% em média (ver abaixo); quanto mais cedo, melhor. Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
 | Minutos depois do comunicado (⚡) | O mesmo alerta, antecipado: o bot lê o EPS no comunicado entregue na SEC, sem esperar horas pelo Yahoo. Quando o Yahoo publica, confirma em silêncio ou manda ↩️ se não se confirmar |
 | 30 min antes da abertura de Nova Iorque (normalmente 14:00) | Resumo dos positivos com o movimento atualizado |
 
@@ -66,6 +66,22 @@ Para o bot usar outro critério, muda no `config.json`:
 - `movimento_preco_minimo_pct` (pode ser negativo);
 - `movimento_preco_maximo_pct` (`null` = sem máximo);
 - `capitalizacao_minima_alerta_usd` (`null` = sem mínimo; com mínimo, as ações da Euronext deixam de gerar alertas, porque não têm capitalização nos dados).
+
+## Teste do pre-market
+
+`premarket.py` repete o teste histórico com barras de 1 hora com after-hours e pre-market (Yahoo, ~2 anos). Mede o que se ganha a comprar antes da abertura, em três momentos:
+- **after-hours às 17:00** de Nova Iorque, nos relatórios depois do fecho (é quando chega o alerta ⚡ da SEC);
+- **pre-market às 08:00** do dia da reação;
+- **pre-market às 09:00** (meia hora antes da abertura).
+
+Vende na abertura ou no fecho do dia da reação. Grava `data/premarket.csv` e `data/premarket_resumo.json` (mostrado na dashboard) e corre com o teste histórico, no dia 1 de cada mês. Para recalcular só o resumo: `.venv\Scripts\python.exe premarket.py --so-resumo`.
+
+Resultados de 11/2026 (14 352 relatórios):
+- **Comprar com o pre-market já a subir 1–5% não dá vantagem:** é cara ou coroa até à abertura.
+- **Comprar no after-hours, 1 hora depois do comunicado, quando bateu ≥ 10% e o preço ainda mexeu pouco (−2% a +2%):** +1,0% até à abertura, 62% sobem, acima da média em 9 de 9 trimestres.
+- **O efeito perde força com o tempo:** +0,5% se comprar às 08:00 e +0,4% às 09:00.
+
+Fora da sessão o Yahoo não dá volume, por isso não se sabe se havia liquidez a esse preço.
 
 ## Alerta antecipado pela SEC (⚡)
 

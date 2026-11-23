@@ -68,6 +68,7 @@
     <h2>Teste histórico da estratégia</h2>
     <div class="sub" id="histSub">A carregar…</div>
     <div id="hist"></div>
+    <div id="pre"></div>
   </section>
 
   <section>
@@ -240,6 +241,23 @@ function renderHistory(h) {
       Resultados passados não garantem resultados futuros.</p>`;
 }
 
+function renderPremarket(p) {
+  // teste com barras de 1 hora: comprar antes da abertura, quando a ação já reage ao relatório
+  if (!p || !p.entradas) return;
+  const rows = Object.values(p.entradas).flatMap(e => [
+    [esc(e.nome), "Critério do bot", fmt(e.bot.n, 0), e.bot.n ? pct(e.bot.media_abertura) : "–", e.bot.n ? pct(e.bot.media_fecho) : "–",
+      e.bot.n ? fmt(e.bot.pct_sobe_ate_fecho, 0) + "%" : "–", e.bot.n ? `${e.bot.trimestres_acima} de ${e.bot.trimestres}` : "–"],
+    ["", '<span class="sub">Todos os relatórios</span>', fmt(e.todos.n, 0), pct(e.todos.media_abertura), pct(e.todos.media_fecho),
+      fmt(e.todos.pct_sobe_ate_fecho, 0) + "%", ""]]);
+  document.getElementById("pre").innerHTML = `<div class="day">Comprar antes da abertura (after-hours e pre-market)</div>
+    <div class="sub">Barras de 1 hora, ${fmt(p.relatorios, 0)} relatórios de ${esc(p.periodo[0])} a ${esc(p.periodo[1])}.
+      Critério do bot: ${esc(p.criterio_bot)}, com o movimento medido no momento da compra. Venda na abertura ou no fecho do dia da reação.</div>
+    <div class="scroll">${table([{ t: "Momento da compra" }, { t: "Grupo" }, { t: "Casos", num: 1 }, { t: "Até à abertura", num: 1 },
+      { t: "Até ao fecho", num: 1 }, { t: "Sobem até ao fecho", num: 1 }, { t: "Trimestres acima da média", num: 1 }], rows)}</div>
+    <p class="warn">Fora da sessão o Yahoo não dá volume: não se sabe se havia liquidez para comprar a esse preço,
+      e a diferença entre compra e venda costuma ser maior do que na sessão.</p>`;
+}
+
 function renderPositives(log) {
   const rows = log.filter(r => r.positivo === "sim").sort((a, b) => b.registado_em.localeCompare(a.registado_em));
   const head = [{ t: "Relatório" }, { t: "Símbolo" }, { t: "Empresa", cls: "name" }, { t: "Surpresa EPS", num: 1 }, { t: "Preço no alerta", num: 1 },
@@ -274,6 +292,7 @@ async function load() {
   try { cal = await get("calendario.json", true); } catch (e) { console.error(e); }
   try { hist = await get("historico_resumo.json", true); } catch (e) { console.warn("sem teste histórico ainda"); }
   renderHistory(hist);
+  try { renderPremarket(await get("premarket_resumo.json", true)); } catch (e) { console.warn("sem teste do pre-market ainda"); }
   const last = log.map(r => r.registado_em).sort().pop();
   document.getElementById("updated").textContent = last ? `Último resultado registado: ${last} (Lisboa)` : "Ainda sem resultados registados";
   renderTiles(log); renderCalendar(cal); renderPositives(log); renderAll(log);

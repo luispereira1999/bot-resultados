@@ -378,3 +378,48 @@ def test_validacao_fora_da_amostra_escolhe_numa_metade_e_mede_na_outra():
         best = v[f"escolhidos_na_{a}"][0]
         assert "surpresa ≥ 10%" in best["regra"] or "surpresa ≥ 5%" in best["regra"]
         assert best["excesso_teste"] == pytest.approx(0.5)
+
+
+# ---------------------------------------------------------------- teste do pre-market
+
+def _bars(day_prices: dict) -> pd.DataFrame:
+    """Barras de 1 hora em hora de Nova Iorque: {"2026-11-09": {"09:30": 100, ...}} (abertura = fecho = preço)."""
+    rows = []
+    for day, prices in day_prices.items():
+        for hm, p in prices.items():
+            rows.append({"ts": pd.Timestamp(f"{day} {hm}", tz="America/New_York"), "Open": p, "High": p + 1, "Low": p - 1, "Close": p})
+    return pd.DataFrame(rows).set_index("ts")
+
+
+def test_premarket_mede_os_precos_de_cada_momento():
+    import premarket
+    bars = _bars({
+        "2026-11-09": {"09:30": 98, "15:30": 100, "17:00": 104},                 # dia do relatório (depois do fecho)
+        "2026-11-10": {"08:00": 105, "09:00": 106, "09:30": 107, "12:30": 109, "15:30": 110},  # dia da reação
+    })
+    ev = {"simbolo": "XYZ", "data": "2026-11-09", "momento": "AMC", "dia_reacao": "2026-11-10", "surpresa_pct": 20.0,
+          "capitalizacao": 60e9}
+    r = premarket.measure(bars, [ev])[0]
+    assert (r["fecho_anterior"], r["ah17"], r["pm08"], r["pm09"], r["abertura"], r["fecho"]) == (100, 104, 105, 106, 107, 110)
+    assert r["maximo"] == 111 and r["minimo"] == 106  # só a sessão do dia da reação (107 a 110, ±1)
+    d = premarket.returns(pd.DataFrame([r]), "pm09").iloc[0]
+    assert d["mov"] == pytest.approx(6.0) and d["ate_abertura"] == pytest.approx(100 * (107 / 106 - 1))
+    assert d["ate_fecho"] == pytest.approx(100 * (110 / 106 - 1))
+
+
+def test_premarket_antes_da_abertura_nao_tem_after_hours():
+    import premarket
+    bars = _bars({"2026-11-09": {"09:30": 99, "15:30": 100}, "2026-11-10": {"08:00": 103, "09:30": 104, "15:30": 102}})
+    ev = {"simbolo": "XYZ", "data": "2026-11-10", "momento": "BMO", "dia_reacao": "2026-11-10", "surpresa_pct": 5.0,
+          "capitalizacao": 5e9}
+    r = premarket.measure(bars, [ev])[0]
+    assert r["ah17"] is None and r["pm09"] is None and r["pm08"] == 103
+    assert premarket.returns(pd.DataFrame([r]), "pm09").empty
+
+
+def test_premarket_sem_sessao_no_dia_da_reacao_fica_de_fora():
+    import premarket
+    bars = _bars({"2026-11-09": {"09:30": 99, "15:30": 100}})
+    ev = {"simbolo": "XYZ", "data": "2026-11-09", "momento": "AMC", "dia_reacao": "2026-11-10", "surpresa_pct": 5.0,
+          "capitalizacao": 5e9}
+    assert premarket.measure(bars, [ev]) == []
