@@ -347,6 +347,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "J|2026-11-23": {
+   "detetado": "2026-11-23T21:11:40.875816+00:00",
+   "entregue": "2026-11-23T16:10:11-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "J",
+    "nome": "Jacobs Solutions Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 18663863446.456604,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 2.12,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
