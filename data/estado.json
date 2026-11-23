@@ -367,6 +367,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "HPE|2026-11-23": {
+   "detetado": "2026-11-23T21:13:49.605425+00:00",
+   "entregue": "2026-11-23T16:12:08-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "HPE",
+    "nome": "Hewlett Packard Enterprise Company",
+    "mercado": "NYSE",
+    "capitalizacao": 64083364231.775505,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 1.29,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
