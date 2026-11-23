@@ -387,6 +387,66 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "SMTC|2026-11-23": {
+   "detetado": "2026-11-23T21:18:00.592443+00:00",
+   "entregue": "2026-11-23T16:15:49-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "SMTC",
+    "nome": "Semtech Corporation",
+    "mercado": "NASDAQ",
+    "capitalizacao": 9708664758.857117,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 1.13,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
+  },
+  "CENT|2026-11-23": {
+   "detetado": "2026-11-23T21:18:00.592443+00:00",
+   "entregue": "2026-11-23T16:15:38-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "CENT",
+    "nome": "Central Garden & Pet Company",
+    "mercado": "NASDAQ",
+    "capitalizacao": 2780989148.241745,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": -0.06,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
+  },
+  "CENTA|2026-11-23": {
+   "detetado": "2026-11-23T21:18:00.592443+00:00",
+   "entregue": "2026-11-23T16:15:38-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "CENTA",
+    "nome": "Central Garden & Pet Company",
+    "mercado": "NASDAQ",
+    "capitalizacao": 2405433560.241745,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": -0.06,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
