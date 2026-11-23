@@ -260,5 +260,31 @@
  "ultimo_resumo_manha": "2026-11-23",
  "ultimo_resumo_premarket": "2026-11-20",
  "ultima_revisao": "2026-11-21",
- "sec": {}
+ "sec": {
+  "CDLR|2026-11-23": {
+   "detetado": "2026-11-23T11:18:46.967957+00:00",
+   "entregue": "2026-11-23T06:16:29-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/2063345/000206334526000014/cadelerq32026.htm",
+   "eps": null,
+   "ajustado": false,
+   "frase": null,
+   "frases": [
+    "million in the first nine months of 2026 , EUR 116 million lower",
+    "On 10 July 2026, Cadeler announced the signing of an EIFO-backed green term loan facility of EUR 247 million to fund the delivery of Wind Apex, expected in Q2 2027."
+   ],
+   "evento": {
+    "simbolo": "CDLR",
+    "nome": "Cadeler plc",
+    "mercado": "NYSE",
+    "capitalizacao": 2263928783.757144,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 0.18,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "sem EPS"
+  }
+ }
 }
