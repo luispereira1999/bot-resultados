@@ -50,6 +50,8 @@ DEFAULTS = {
     "dias_calendario": 3,
     "max_empresas_por_dia_no_resumo": 15,
     "alerta_cedo_sec": True,
+    "movimento_preco_maximo_pct": None,  # sem limite: subidas muito grandes também contam
+    "capitalizacao_minima_alerta_usd": None,  # sem limite além do do calendário
 }
 
 LOG_COLUMNS = [
@@ -494,6 +496,18 @@ def task_morning(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
     notify(cfg, f"Resultados: próximos {days} dias", "\n".join(lines).strip(), tags=["calendar"], dry=dry)
 
 
+def price_ok(cfg: dict, move: float) -> bool:
+    """O movimento do preço está dentro dos limites do critério (mínimo e, se houver, máximo)."""
+    hi = cfg.get("movimento_preco_maximo_pct")
+    return move >= cfg["movimento_preco_minimo_pct"] and (hi is None or move < hi)
+
+
+def cap_ok(cfg: dict, cap: float | None) -> bool:
+    """Capitalização mínima para alertar (sem limite por omissão; sem dados de capitalização não passa)."""
+    lo = cfg.get("capitalizacao_minima_alerta_usd")
+    return lo is None or (cap is not None and cap >= lo)
+
+
 def evaluate(cfg: dict, ev: dict, details: bool = True) -> dict | None:
     """Classifica um resultado. Com details=False não vai buscar as expectativas dos analistas (mais rápido)."""
     t = yf.Ticker(ev["simbolo"])
@@ -511,7 +525,7 @@ def evaluate(cfg: dict, ev: dict, details: bool = True) -> dict | None:
         surprise = (ev["eps_real"] - ev["eps_estimado"]) / abs(ev["eps_estimado"]) * 100
     late = move_kind == "tardio"
     beat = surprise is not None and surprise >= cfg["surpresa_eps_minima_pct"]
-    up = move >= cfg["movimento_preco_minimo_pct"]
+    up = price_ok(cfg, move) and cap_ok(cfg, ev.get("capitalizacao"))
     return {**ev, **exp, "nome": name, "surpresa_pct": surprise, "movimento_pct": move,
             "movimento_tipo": move_kind, "positivo": beat and up and not late,
             "bateu_mas_cai": beat and not up and not late}

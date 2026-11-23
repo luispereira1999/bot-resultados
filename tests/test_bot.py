@@ -318,3 +318,63 @@ def test_comunicado_que_falha_nao_bloqueia_as_passagens_seguintes(sec_env, monke
     bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
     bot.task_check(sec_env["cfg"], state, sec_env["now"] + pd.Timedelta(minutes=2), dry=False)
     assert len(calls) == 1 and state["sec"]["XYZ|2026-11-10"]["estado"] == "erro"
+
+
+# ---------------------------------------------------------------- critério do alerta e validação
+
+@pytest.mark.parametrize("move,cap,ok", [
+    (-3.0, 60e9, True),    # abriu a cair um pouco, mas dentro do intervalo
+    (4.9, 60e9, True),
+    (5.0, 60e9, False),    # acima do máximo
+    (-6.0, 60e9, False),   # abaixo do mínimo
+    (1.0, 20e9, False),    # empresa pequena demais
+    (1.0, None, False),    # sem capitalização conhecida
+])
+def test_criterio_com_intervalo_de_preco_e_capitalizacao(move, cap, ok):
+    cfg = {**bot.DEFAULTS, "movimento_preco_minimo_pct": -5, "movimento_preco_maximo_pct": 5,
+           "capitalizacao_minima_alerta_usd": 50e9}
+    assert (bot.price_ok(cfg, move) and bot.cap_ok(cfg, cap)) == ok
+
+
+def test_criterio_por_omissao_nao_muda():
+    cfg = dict(bot.DEFAULTS)
+    assert bot.price_ok(cfg, 40.0) and not bot.price_ok(cfg, 1.9) and bot.cap_ok(cfg, None)
+
+
+def test_teste_historico_le_o_criterio_do_config(tmp_path):
+    p = tmp_path / "config.json"
+    p.write_text('{"surpresa_eps_minima_pct": 10, "movimento_preco_minimo_pct": -5, "movimento_preco_maximo_pct": 5,'
+                 ' "capitalizacao_minima_alerta_usd": 50000000000}', encoding="utf-8")
+    c = backtest.bot_criterion(p)
+    assert c == {"surpresa_min": 10, "gap_min": -5, "gap_max": 5, "cap_min": 50e9}
+    assert backtest.describe(c) == "surpresa ≥ 10%, abertura entre -5% e +5%, capitalização ≥ 50 mil M$"
+    assert backtest.bot_criterion(tmp_path / "nao_existe.json")["gap_min"] == 2
+
+
+def _historico(n_per_quarter=40):
+    """Relatórios sintéticos: os de surpresa >= 10 sobem 1 ponto acima dos outros em todos os trimestres."""
+    rows = []
+    for q, day in enumerate(pd.date_range("2025-01-15", periods=8, freq="QS")):
+        for i in range(n_per_quarter):
+            big = i % 2 == 0
+            rows.append({"simbolo": f"S{i}", "dia_reacao": (day + pd.Timedelta(days=i % 20)).date().isoformat(),
+                         "surpresa_pct": 15.0 if big else 1.0, "gap_pct": 1.0, "capitalizacao": 60e9,
+                         "ab_fecho_pct": (1.5 if big else 0.5) + (0.2 if i % 4 < 2 else -0.2) + q * 0.1,
+                         "ab_max_pct": 2.0, "ab_min_pct": -1.0})
+    return pd.DataFrame(rows)
+
+
+def test_relatorio_do_criterio_compara_com_o_mesmo_trimestre():
+    df = _historico()
+    r = backtest.criterion_report(df, "x", {"surpresa_min": 10, "gap_min": None, "gap_max": None, "cap_min": None})
+    assert r["n"] == 160 and r["trimestres"] == 8 and r["trimestres_acima"] == 8
+    assert all(x["excesso"] == pytest.approx(0.5) for x in r["por_trimestre"])  # 1 ponto acima de uma média que já os inclui
+
+
+def test_validacao_fora_da_amostra_escolhe_numa_metade_e_mede_na_outra():
+    v = backtest.out_of_sample(_historico(), min_n=20)
+    assert v["combinacoes"] > 0
+    for a in (1, 2):
+        best = v[f"escolhidos_na_{a}"][0]
+        assert "surpresa ≥ 10%" in best["regra"] or "surpresa ≥ 5%" in best["regra"]
+        assert best["excesso_teste"] == pytest.approx(0.5)

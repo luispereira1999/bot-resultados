@@ -7,7 +7,7 @@ Avisa no telemóvel (app **ntfy**) sobre os relatórios de resultados de ações
 | Quando (Lisboa) | Aviso |
 |---|---|
 | 08:30, seg–sex | Calendário dos próximos 3 dias: empresas, hora (🌅 antes da abertura / 🌙 depois do fecho) e EPS estimado |
-| Assim que sai um resultado | 🟢 só se for **positivo**: EPS acima da estimativa (≥ 5%) **e** preço a subir (≥ 2%) no pre-market/after-hours. Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
+| Assim que sai um resultado | 🟢 só se for **positivo**: empresa grande (≥ 50 mil M$), EPS bem acima da estimativa (≥ 10%) **e** preço ainda sem grande reação no pre-market/after-hours (entre −5% e +5%). Foi o critério mais estável no teste histórico (ver abaixo). Inclui expectativas dos analistas para o próximo trimestre, revisões recentes e link para o comunicado (secção *Outlook* = guidance) |
 | Minutos depois do comunicado (⚡) | O mesmo alerta, antecipado: o bot lê o EPS no comunicado entregue na SEC, sem esperar horas pelo Yahoo. Quando o Yahoo publica, confirma em silêncio ou manda ↩️ se não se confirmar |
 | 30 min antes da abertura de Nova Iorque (normalmente 14:00) | Resumo dos positivos com o movimento atualizado |
 
@@ -37,7 +37,7 @@ Acrescenta `--seco` para ver no ecrã sem enviar.
 
 ## Ajustar
 
-- `config.json`: limites (surpresa mínima, subida mínima, capitalização mínima), horas dos resumos.
+- `config.json`: critério do alerta (surpresa mínima, intervalo do movimento do preço, capitalização mínima), capitalização mínima do calendário, horas dos resumos.
 - `euronext.txt`: lista de ações europeias a seguir (símbolos do Yahoo, ex.: `GALP.LS`, `ASML.AS`).
 
 ## Automático
@@ -52,7 +52,20 @@ Alternativa sem nuvem: `agendar.ps1` cria uma tarefa no Windows que corre o bot 
 
 ## Teste histórico
 
-`backtest.py` mede o que as ações fizeram depois dos resultados dos últimos 2 anos e grava `data/historico_resumo.json` (mostrado na dashboard) e `data/historico.csv` (todos os casos). Corre na nuvem no dia 1 de cada mês, ou à mão em Actions → Teste histórico → *Run workflow*.
+`backtest.py` mede o que as ações fizeram depois dos resultados dos últimos 2 anos e grava `data/historico_resumo.json` (mostrado na dashboard) e `data/historico.csv` (todos os casos). Corre na nuvem no dia 1 de cada mês, ou à mão em Actions → Teste histórico → *Run workflow*. Para recalcular só o resumo a partir do `historico.csv` (segundos, sem descarregar): `.venv\Scripts\python.exe backtest.py --so-resumo`.
+
+O critério medido é sempre o do `config.json`. Para evitar escolher um critério que só funcionou por acaso, o resumo também mostra:
+- **Validação fora da amostra:** os melhores critérios de cada metade do período, medidos na outra metade.
+- **Trimestres acima da média:** em quantos trimestres cada critério ficou acima da média de todos os relatórios desse trimestre.
+- **Candidatos:** dois critérios que passaram a validação em 11/2026.
+  - **Subida forte:** surpresa ≥ 10%, subida entre +5% e +10%, capitalização ≥ 5 mil M$.
+  - **Grandes empresas:** surpresa ≥ 10%, movimento entre −5% e +5%, capitalização ≥ 50 mil M$.
+
+Para o bot usar outro critério, muda no `config.json`:
+- `surpresa_eps_minima_pct`;
+- `movimento_preco_minimo_pct` (pode ser negativo);
+- `movimento_preco_maximo_pct` (`null` = sem máximo);
+- `capitalizacao_minima_alerta_usd` (`null` = sem mínimo; com mínimo, as ações da Euronext deixam de gerar alertas, porque não têm capitalização nos dados).
 
 ## Alerta antecipado pela SEC (⚡)
 
