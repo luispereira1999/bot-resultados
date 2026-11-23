@@ -1,11 +1,402 @@
 {
- "gerado_em": "2026-11-23T00:40+00:00",
+ "gerado_em": "2026-11-23T01:07+00:00",
  "relatorios": 14352,
  "periodo": [
   "2024-11-11",
   "2026-11-10"
  ],
  "criterio_bot": "surpresa ≥ 10%, movimento entre -2% e +2%",
+ "custo_ida_volta_pct": 0.3,
+ "nomes_saidas": {
+  "pm08": "no pre-market às 08:00",
+  "pm09": "no pre-market às 09:00",
+  "abertura": "na abertura",
+  "s1030": "às 10:30",
+  "s1230": "às 12:30",
+  "s1430": "às 14:30",
+  "fecho": "no fecho"
+ },
+ "saidas": {
+  "ah17": {
+   "todos": {
+    "saidas": {
+     "pm08": {
+      "n": 961,
+      "media": 0.7,
+      "mediana": 0.37,
+      "pct_sobe": 60.4,
+      "liquido": 0.4
+     },
+     "pm09": {
+      "n": 938,
+      "media": 0.77,
+      "mediana": 0.42,
+      "pct_sobe": 60.2,
+      "liquido": 0.47
+     },
+     "abertura": {
+      "n": 1132,
+      "media": 1.01,
+      "mediana": 0.89,
+      "pct_sobe": 61.7,
+      "liquido": 0.71
+     },
+     "s1030": {
+      "n": 1132,
+      "media": 1.01,
+      "mediana": 0.73,
+      "pct_sobe": 57.4,
+      "liquido": 0.71
+     },
+     "s1230": {
+      "n": 1111,
+      "media": 1.04,
+      "mediana": 0.79,
+      "pct_sobe": 56.5,
+      "liquido": 0.74
+     },
+     "s1430": {
+      "n": 1131,
+      "media": 0.99,
+      "mediana": 0.76,
+      "pct_sobe": 56.4,
+      "liquido": 0.69
+     },
+     "fecho": {
+      "n": 1132,
+      "media": 0.94,
+      "mediana": 0.68,
+      "pct_sobe": 55.7,
+      "liquido": 0.64
+     }
+    },
+    "melhor": "abertura"
+   },
+   "AMC": {
+    "saidas": {
+     "pm08": {
+      "n": 961,
+      "media": 0.7,
+      "mediana": 0.37,
+      "pct_sobe": 60.4,
+      "liquido": 0.4
+     },
+     "pm09": {
+      "n": 938,
+      "media": 0.77,
+      "mediana": 0.42,
+      "pct_sobe": 60.2,
+      "liquido": 0.47
+     },
+     "abertura": {
+      "n": 1132,
+      "media": 1.01,
+      "mediana": 0.89,
+      "pct_sobe": 61.7,
+      "liquido": 0.71
+     },
+     "s1030": {
+      "n": 1132,
+      "media": 1.01,
+      "mediana": 0.73,
+      "pct_sobe": 57.4,
+      "liquido": 0.71
+     },
+     "s1230": {
+      "n": 1111,
+      "media": 1.04,
+      "mediana": 0.79,
+      "pct_sobe": 56.5,
+      "liquido": 0.74
+     },
+     "s1430": {
+      "n": 1131,
+      "media": 0.99,
+      "mediana": 0.76,
+      "pct_sobe": 56.4,
+      "liquido": 0.69
+     },
+     "fecho": {
+      "n": 1132,
+      "media": 0.94,
+      "mediana": 0.68,
+      "pct_sobe": 55.7,
+      "liquido": 0.64
+     }
+    },
+    "melhor": "abertura"
+   },
+   "BMO": {
+    "saidas": {},
+    "melhor": null
+   }
+  },
+  "pm08": {
+   "todos": {
+    "saidas": {
+     "pm09": {
+      "n": 1619,
+      "media": 0.31,
+      "mediana": 0.07,
+      "pct_sobe": 53.1,
+      "liquido": 0.01
+     },
+     "abertura": {
+      "n": 1832,
+      "media": 0.32,
+      "mediana": 0.23,
+      "pct_sobe": 53.6,
+      "liquido": 0.02
+     },
+     "s1030": {
+      "n": 1832,
+      "media": 0.39,
+      "mediana": 0.22,
+      "pct_sobe": 52.1,
+      "liquido": 0.09
+     },
+     "s1230": {
+      "n": 1814,
+      "media": 0.53,
+      "mediana": 0.31,
+      "pct_sobe": 52.9,
+      "liquido": 0.23
+     },
+     "s1430": {
+      "n": 1832,
+      "media": 0.53,
+      "mediana": 0.39,
+      "pct_sobe": 52.7,
+      "liquido": 0.23
+     },
+     "fecho": {
+      "n": 1832,
+      "media": 0.52,
+      "mediana": 0.35,
+      "pct_sobe": 53.5,
+      "liquido": 0.22
+     }
+    },
+    "melhor": "s1030"
+   },
+   "AMC": {
+    "saidas": {
+     "pm09": {
+      "n": 779,
+      "media": 0.17,
+      "mediana": 0.02,
+      "pct_sobe": 51.5,
+      "liquido": -0.13
+     },
+     "abertura": {
+      "n": 908,
+      "media": 0.5,
+      "mediana": 0.38,
+      "pct_sobe": 56.8,
+      "liquido": 0.2
+     },
+     "s1030": {
+      "n": 908,
+      "media": 0.35,
+      "mediana": 0.2,
+      "pct_sobe": 51.9,
+      "liquido": 0.05
+     },
+     "s1230": {
+      "n": 897,
+      "media": 0.46,
+      "mediana": 0.32,
+      "pct_sobe": 53.0,
+      "liquido": 0.16
+     },
+     "s1430": {
+      "n": 908,
+      "media": 0.39,
+      "mediana": 0.25,
+      "pct_sobe": 52.2,
+      "liquido": 0.09
+     },
+     "fecho": {
+      "n": 908,
+      "media": 0.35,
+      "mediana": 0.29,
+      "pct_sobe": 52.4,
+      "liquido": 0.05
+     }
+    },
+    "melhor": "abertura"
+   },
+   "BMO": {
+    "saidas": {
+     "pm09": {
+      "n": 840,
+      "media": 0.45,
+      "mediana": 0.16,
+      "pct_sobe": 54.6,
+      "liquido": 0.15
+     },
+     "abertura": {
+      "n": 924,
+      "media": 0.14,
+      "mediana": 0.03,
+      "pct_sobe": 50.4,
+      "liquido": -0.16
+     },
+     "s1030": {
+      "n": 924,
+      "media": 0.42,
+      "mediana": 0.25,
+      "pct_sobe": 52.4,
+      "liquido": 0.12
+     },
+     "s1230": {
+      "n": 917,
+      "media": 0.6,
+      "mediana": 0.31,
+      "pct_sobe": 52.9,
+      "liquido": 0.3
+     },
+     "s1430": {
+      "n": 924,
+      "media": 0.68,
+      "mediana": 0.45,
+      "pct_sobe": 53.2,
+      "liquido": 0.38
+     },
+     "fecho": {
+      "n": 924,
+      "media": 0.7,
+      "mediana": 0.45,
+      "pct_sobe": 54.7,
+      "liquido": 0.4
+     }
+    },
+    "melhor": "s1230"
+   }
+  },
+  "pm09": {
+   "todos": {
+    "saidas": {
+     "abertura": {
+      "n": 1554,
+      "media": 0.16,
+      "mediana": 0.13,
+      "pct_sobe": 52.4,
+      "liquido": -0.14
+     },
+     "s1030": {
+      "n": 1554,
+      "media": 0.23,
+      "mediana": 0.19,
+      "pct_sobe": 52.3,
+      "liquido": -0.07
+     },
+     "s1230": {
+      "n": 1536,
+      "media": 0.37,
+      "mediana": 0.39,
+      "pct_sobe": 54.1,
+      "liquido": 0.07
+     },
+     "s1430": {
+      "n": 1552,
+      "media": 0.35,
+      "mediana": 0.32,
+      "pct_sobe": 53.5,
+      "liquido": 0.05
+     },
+     "fecho": {
+      "n": 1554,
+      "media": 0.37,
+      "mediana": 0.45,
+      "pct_sobe": 54.4,
+      "liquido": 0.07
+     }
+    },
+    "melhor": "s1030"
+   },
+   "AMC": {
+    "saidas": {
+     "abertura": {
+      "n": 846,
+      "media": 0.36,
+      "mediana": 0.27,
+      "pct_sobe": 55.3,
+      "liquido": 0.06
+     },
+     "s1030": {
+      "n": 846,
+      "media": 0.38,
+      "mediana": 0.28,
+      "pct_sobe": 53.4,
+      "liquido": 0.08
+     },
+     "s1230": {
+      "n": 836,
+      "media": 0.47,
+      "mediana": 0.48,
+      "pct_sobe": 54.7,
+      "liquido": 0.17
+     },
+     "s1430": {
+      "n": 844,
+      "media": 0.36,
+      "mediana": 0.3,
+      "pct_sobe": 53.4,
+      "liquido": 0.06
+     },
+     "fecho": {
+      "n": 846,
+      "media": 0.38,
+      "mediana": 0.45,
+      "pct_sobe": 54.3,
+      "liquido": 0.08
+     }
+    },
+    "melhor": "abertura"
+   },
+   "BMO": {
+    "saidas": {
+     "abertura": {
+      "n": 708,
+      "media": -0.07,
+      "mediana": -0.0,
+      "pct_sobe": 49.0,
+      "liquido": -0.37
+     },
+     "s1030": {
+      "n": 708,
+      "media": 0.06,
+      "mediana": 0.08,
+      "pct_sobe": 51.0,
+      "liquido": -0.24
+     },
+     "s1230": {
+      "n": 700,
+      "media": 0.24,
+      "mediana": 0.32,
+      "pct_sobe": 53.4,
+      "liquido": -0.06
+     },
+     "s1430": {
+      "n": 708,
+      "media": 0.34,
+      "mediana": 0.32,
+      "pct_sobe": 53.5,
+      "liquido": 0.04
+     },
+     "fecho": {
+      "n": 708,
+      "media": 0.36,
+      "mediana": 0.44,
+      "pct_sobe": 54.5,
+      "liquido": 0.06
+     }
+    },
+    "melhor": "s1230"
+   }
+  }
+ },
  "entradas": {
   "ah17": {
    "nome": "after-hours 17:00 (só depois do fecho)",

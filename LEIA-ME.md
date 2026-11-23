@@ -90,6 +90,15 @@ Resultados de 11/2026 (14 352 relatórios):
 
 Fora da sessão o Yahoo não dá volume, por isso não se sabe se havia liquidez a esse preço.
 
+**Quando vender.** O teste também mede vender no pre-market (08:00, 09:00), na abertura, às 10:30, 12:30, 14:30 e no fecho, descontando 0,30% de custos ida e volta (câmbio; muda-se com `--custo`). A "melhor" é a venda mais cedo que fica a menos de 0,15 pontos da que rende mais (diferenças menores são ruído). O alerta e o lembrete antes da abertura sugerem essa hora. Com o critério atual (11/2026):
+
+| Compra | Relatórios | Melhor venda | Líquido |
+|---|---|---|---|
+| ⚡ after-hours 17:00 | depois do fecho | na abertura | +0,71% |
+| pre-market 08:00 | depois do fecho | na abertura | +0,20% |
+| pre-market 08:00 | antes da abertura | às 12:30 | +0,30% |
+| pre-market 09:00 | qualquer | – | ≈ 0% (não compensa) |
+
 ## Alerta antecipado pela SEC (⚡)
 
 O Yahoo só mostra o EPS horas depois do comunicado (nos relatórios depois do fecho, perto das 01:30 de Lisboa, quando o after-hours já acabou). A cada passagem, o bot lê o feed de entregas recentes da SEC. Quando uma empresa do calendário entrega o comunicado de resultados (8-K com o ponto 2.02, ou 6-K), o bot lê o EPS do trimestre no texto (o ajustado, se houver). Se bater a estimativa e o preço subir o suficiente, avisa logo.

@@ -34,6 +34,12 @@ ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 NY = "America/New_York"
 ENTRIES = {"ah17": "after-hours 17:00 (só depois do fecho)", "pm08": "pre-market 08:00", "pm09": "pre-market 09:00"}
+# momentos de venda no dia da reação, por ordem
+EXITS = {"pm08": "no pre-market às 08:00", "pm09": "no pre-market às 09:00", "abertura": "na abertura",
+         "s1030": "às 10:30", "s1230": "às 12:30", "s1430": "às 14:30", "fecho": "no fecho"}
+ORDER = ["ah17", "pm08", "pm09", "abertura", "s1030", "s1230", "s1430", "fecho"]
+COST_PCT = 0.15  # custo por sentido (câmbio da corretora); ida e volta = 0,30%
+EXIT_MARGIN_PCT = 0.15  # uma venda mais tarde só é "melhor" se render mais do que isto
 SURPRISES = [None, 0, 5, 10, 20]
 MOVES = [None, 0, 1, 2, 3, 5]          # movimento mínimo no momento da compra
 MOVE_MAX = [None, 10]
@@ -74,7 +80,9 @@ def measure(bars: pd.DataFrame, events: list[dict]) -> list[dict]:
 
         row = {**e, "fecho_anterior": float(prev_reg["Close"].iloc[-1]), "abertura": float(reg["Open"].iloc[0]),
                "fecho": float(reg["Close"].iloc[-1]), "maximo": float(reg["High"].max()), "minimo": float(reg["Low"].min()),
-               "pm08": at(today, t, "08:00"), "pm09": at(today, t, "09:00"), "ah17": None}
+               "pm08": at(today, t, "08:00"), "pm09": at(today, t, "09:00"), "ah17": None,
+               # pontos de venda a meio da sessão (preço de abertura da barra de 1 hora)
+               "s1030": at(today, t, "10:30"), "s1230": at(today, t, "12:30"), "s1430": at(today, t, "14:30")}
         report_day = pd.Timestamp(e["data"]).date()
         if e["momento"] == "AMC" and report_day == prev_days[-1]:
             row["ah17"] = at(prev, pt, "17:00")
@@ -161,6 +169,27 @@ def rule(s, m, mmax, cap) -> str:
     return ", ".join(parts)
 
 
+def exits(d: pd.DataFrame, entry: str, cost: float, min_n: int = 30) -> dict:
+    """Ganho médio de cada momento de venda depois da compra, bruto e líquido de custos, e qual é o melhor."""
+    out = {}
+    for ex in ORDER[ORDER.index(entry) + 1:]:
+        if ex not in d.columns:
+            continue
+        x = d[d[ex].notna() & (d[ex] > 0)]
+        r = (x[ex] / x[entry] - 1) * 100
+        r = r[r.abs() < 80]
+        if len(r) < min_n:
+            continue
+        out[ex] = {"n": int(len(r)), "media": round(float(r.mean()), 2), "mediana": round(float(r.median()), 2),
+                   "pct_sobe": round(float((r > 0).mean() * 100), 1), "liquido": round(float(r.mean() - 2 * cost), 2)}
+    # a venda mais cedo que fica perto da melhor: diferenças pequenas são ruído e vender cedo expõe menos tempo
+    best = None
+    if out:
+        top = max(v["liquido"] for v in out.values())
+        best = next(k for k in out if out[k]["liquido"] >= top - EXIT_MARGIN_PCT)
+    return {"saidas": out, "melhor": best}
+
+
 def bot_rule() -> dict:
     """O critério do bot (config.json), traduzido para este teste: o movimento é o do momento da compra."""
     import backtest
@@ -168,11 +197,20 @@ def bot_rule() -> dict:
     return {"s": c["surpresa_min"], "m": c["gap_min"], "mmax": c["gap_max"], "cap": c["cap_min"]}
 
 
-def summary(df: pd.DataFrame, min_n: int = 100) -> dict:
+def summary(df: pd.DataFrame, min_n: int = 100, cost: float = COST_PCT) -> dict:
     b = bot_rule()
     out = {"gerado_em": datetime.now().astimezone().isoformat(timespec="minutes"),
            "relatorios": int(len(df)), "periodo": [str(df["dia_reacao"].min()), str(df["dia_reacao"].max())],
-           "criterio_bot": rule(b["s"], b["m"], b["mmax"], b["cap"]), "entradas": {}}
+           "criterio_bot": rule(b["s"], b["m"], b["mmax"], b["cap"]), "custo_ida_volta_pct": round(2 * cost, 2),
+           "nomes_saidas": EXITS, "saidas": {}, "entradas": {}}
+    # quando vender, para o critério do bot: por momento de compra e por hora do relatório
+    for entry in ENTRIES:
+        d = returns(df, entry)
+        sel = select(d, b["s"], b["m"], b["mmax"], b["cap"])
+        if sel.empty:
+            continue
+        out["saidas"][entry] = {"todos": exits(sel, entry, cost),
+                                **{m: exits(sel[sel["momento"] == m], entry, cost) for m in ("AMC", "BMO")}}
     for entry, label in ENTRIES.items():
         d = returns(df, entry)
         if d.empty:
@@ -216,6 +254,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max", type=int, default=0, help="limita o número de ações (para testar)")
     ap.add_argument("--so-resumo", action="store_true")
+    ap.add_argument("--custo", type=float, default=COST_PCT, help="custo por sentido em %% (câmbio, comissões)")
     a = ap.parse_args()
     if sys.stdout is not None:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -231,9 +270,15 @@ def main() -> None:
         if df.empty:
             sys.exit("Sem dados.")
         df.round(4).to_csv(DATA / "premarket.csv", sep=";", index=False, encoding="utf-8-sig")
-    s = summary(df)
+    s = summary(df, cost=a.custo)
     (DATA / "premarket_resumo.json").write_text(json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"critério do bot: {s['criterio_bot']}")
+    print(f"critério do bot: {s['criterio_bot']} · custos ida e volta {s['custo_ida_volta_pct']}%")
+    for entry, by_m in s["saidas"].items():
+        for m, e in by_m.items():
+            if e["melhor"]:
+                best = e["saidas"][e["melhor"]]
+                print(f"  compra {entry} ({m}): melhor vender {EXITS[e['melhor']]} -> {best['media']:+.2f}% "
+                      f"(líquido {best['liquido']:+.2f}%, n={best['n']})")
     for entry, e in s["entradas"].items():
         t, b = e["todos"], e["bot"]
         print(f"{e['nome']}: todos n={e['n']} até ao fecho {t['media_fecho']:+.2f}% | critério do bot n={b['n']}"

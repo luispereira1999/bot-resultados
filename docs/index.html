@@ -255,6 +255,33 @@ function renderHistory(h) {
       Resultados passados não garantem resultados futuros.</p>`;
 }
 
+// Quando vender: ganho médio depois de custos para cada momento de venda (o melhor a negrito), critério do bot.
+function exitTable(p) {
+  if (!p.saidas || !p.nomes_saidas) return "";
+  const exits = Object.keys(p.nomes_saidas);
+  const buy = { ah17: "After-hours 17:00", pm08: "Pre-market 08:00", pm09: "Pre-market 09:00" };
+  const who = { AMC: "depois do fecho", BMO: "antes da abertura" };
+  const rows = [];
+  for (const [entry, byM] of Object.entries(p.saidas)) {
+    for (const m of ["AMC", "BMO"]) {
+      const e = byM[m];
+      if (!e || !e.melhor) continue;
+      const n = Math.max(...Object.values(e.saidas).map(x => x.n));
+      rows.push([esc(buy[entry] || entry), who[m], fmt(n, 0), ...exits.map(x => {
+        const s = e.saidas[x];
+        if (!s) return "–";
+        return x === e.melhor ? `<b>${pct(s.liquido)}</b>` : pct(s.liquido);
+      })]);
+    }
+  }
+  const head = [{ t: "Compra" }, { t: "Relatórios" }, { t: "Casos", num: 1 },
+    ...exits.map(x => ({ t: "Vender " + p.nomes_saidas[x].replace(/^(no |na |às )/, ""), num: 1 }))];
+  return `<div class="day">Quando vender</div>
+    <div class="sub">Ganho médio depois de ${fmt(p.custo_ida_volta_pct, 2)}% de custos (câmbio da corretora, ida e volta), com o critério do bot.
+      A negrito, a melhor hora de venda; é a que o bot sugere no alerta e no lembrete antes da abertura.</div>
+    <div class="scroll">${table(head, rows)}</div>`;
+}
+
 function renderPremarket(p) {
   // teste com barras de 1 hora: comprar antes da abertura, quando a ação já reage ao relatório
   if (!p || !p.entradas) return;
@@ -268,6 +295,7 @@ function renderPremarket(p) {
       Critério do bot: ${esc(p.criterio_bot)}, com o movimento medido no momento da compra. Venda na abertura ou no fecho do dia da reação.</div>
     <div class="scroll">${table([{ t: "Momento da compra" }, { t: "Grupo" }, { t: "Casos", num: 1 }, { t: "Até à abertura", num: 1 },
       { t: "Até ao fecho", num: 1 }, { t: "Sobem até ao fecho", num: 1 }, { t: "Trimestres acima da média", num: 1 }], rows)}</div>
+    ${exitTable(p)}
     <p class="warn">Fora da sessão o Yahoo não dá volume: não se sabe se havia liquidez para comprar a esse preço,
       e a diferença entre compra e venda costuma ser maior do que na sessão.</p>`;
 }
