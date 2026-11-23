@@ -651,3 +651,33 @@ def test_dia_da_reacao():
     assert bot.reaction_day(event(2026, 11, 10, 7)) == datetime(2026, 11, 10).date()      # antes da abertura: no próprio dia
     assert bot.reaction_day(event(2026, 11, 10, 16, 5)) == datetime(2026, 11, 11).date()  # depois do fecho: no dia seguinte
     assert bot.reaction_day(event(2026, 11, 13, 16, 5)) == datetime(2026, 11, 16).date()  # sexta à noite: segunda
+
+
+# ---------------------------------------------------------------- excerto do guidance e token do ntfy
+
+@pytest.mark.parametrize("frase,fica", [
+    ("For the fourth quarter of 2026, the company expects revenue of $1.30 billion to $1.35 billion.", True),
+    ("Raised full year 2026 guidance to adjusted EPS of $4.10 to $4.20.", True),
+    ("Full year revenue of $5.23 billion, landing within the guidance range for fiscal 2026.", False),       # resultado conhecido
+    ("The fiscal 2025 EPS base of $2.83 represents the midpoint of fiscal 2025 guidance.", False),          # só anos passados
+    ("Revenue was $7.53 million, compared with $15.66 million in Q3 2025, below our outlook.", False),      # comparação com o passado
+    ("Unrecognized compensation costs of $7 million are expected to be recognized in 2027.", False),        # contabilidade
+    ("We expect 2027 revenue of $5 billion, compared with $4.6 billion in 2026.", True),                    # previsão com comparação
+])
+def test_excerto_do_guidance_deixa_de_fora_o_passado(frase, fica):
+    import guidance
+    assert bool(guidance.extract(frase, year=2026)) == fica
+
+
+def test_ntfy_usa_o_token_quando_existe(monkeypatch):
+    calls = []
+
+    class Resp:
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(bot.requests, "post", lambda url, json, headers, timeout: calls.append(headers) or Resp())
+    cfg = {**bot.DEFAULTS, "ntfy_topico": "t"}
+    bot.notify(cfg, "a", "b")
+    bot.notify({**cfg, "ntfy_token": "tk_123"}, "a", "b")
+    assert calls == [{}, {"Authorization": "Bearer tk_123"}]

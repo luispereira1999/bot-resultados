@@ -32,7 +32,16 @@ FUTURE = re.compile(r"\b(full[- ]year|fiscal(?: year)? ?20\d\d|fy ?20?\d\d|next 
 NUMBER = re.compile(r"(\$\s?\d|\d+(\.\d+)?\s?(%|percent|million|billion|bps|basis points))", re.I)
 BOILERPLATE = re.compile(r"forward[- ]looking|safe harbor|undue reliance|risks? and uncertaint|actual results|"
                          r"no obligation|private securities litigation|non-gaap financial measures? (is|are|should)|"
-                         r"conference call|webcast|reconciliation", re.I)
+                         r"conference call|webcast|reconciliation|compensation cost|stock options|gross proceeds|"
+                         r"offering|unrecognized|weighted[- ]average period|repurchase|dividend", re.I)
+# marcas de um resultado já conhecido ("was", "compared with", "as of")...
+PAST = re.compile(r"\b(was|were|landing|landed|exceeded|compared (with|to)|compares (with|to)|versus|vs\.|as (at|of)|reported|achieved|"
+                  r"delivered|grew|declined|ended)\b", re.I)
+# ...que só contam como previsão se houver também um verbo de previsão claro
+FORWARD = re.compile(r"\b(expects?|expected to (be|grow|increase|decrease|range)|will|anticipates?|forecasts?|"
+                     r"introduc\w*|establish\w*|initiat\w*|rais\w*|reaffirm\w*|reiterat\w*|updat\w*|narrow\w*|"
+                     r"guidance (of|for|range of|is)|outlook (of|for|is))\b", re.I)
+YEAR = re.compile(r"\b(?:fiscal\s+(?:year\s+)?|fy\s?|full[- ]year\s+)?(20\d\d)\b", re.I)
 
 
 def identify(contact: str) -> str:
@@ -115,8 +124,14 @@ def to_text(page: str) -> str:
     return re.sub(r"[ \t]+", " ", page)
 
 
-def extract(text: str, limit: int = 3, max_chars: int = 260) -> list[str]:
-    """Frases de previsão: palavra de previsão + período futuro + um número, sem texto jurídico."""
+def extract(text: str, limit: int = 3, max_chars: int = 260, year: int | None = None) -> list[str]:
+    """Frases de previsão: palavra de previsão + período futuro + um número, sem texto jurídico.
+
+    Deixa de fora frases sobre o passado: as que só falam de anos anteriores a `year` (por omissão, o ano
+    atual) e as que descrevem um resultado já conhecido ("revenue was…", "compared with…") sem um verbo de
+    previsão claro.
+    """
+    year = year or date.today().year
     found, seen = [], set()
     for block in text.split("\n"):
         for s in re.split(r"(?<=[.!?])\s+(?=[A-Z\"“])", block.strip()):
@@ -125,6 +140,11 @@ def extract(text: str, limit: int = 3, max_chars: int = 260) -> list[str]:
                 continue
             if not (KEYWORDS.search(s) and NUMBER.search(s) and FUTURE.search(s)):
                 continue
+            years = [int(y) for y in YEAR.findall(s)]
+            if years and max(years) < year:
+                continue  # só anos que já passaram
+            if PAST.search(s) and not FORWARD.search(s):
+                continue  # resultado conhecido, não previsão
             key = re.sub(r"\W+", "", s.lower())[:60]
             if key in seen:
                 continue

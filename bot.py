@@ -109,6 +109,8 @@ def load_config() -> dict:
             cfg.update(json.loads(path.read_text(encoding="utf-8")))
     if os.environ.get("NTFY_TOPICO"):  # na nuvem vem de um segredo do GitHub
         cfg["ntfy_topico"] = os.environ["NTFY_TOPICO"].strip()
+    if os.environ.get("NTFY_TOKEN"):  # opcional: token de acesso a um tópico protegido
+        cfg["ntfy_token"] = os.environ["NTFY_TOKEN"].strip()
     if os.environ.get("SEC_CONTACTO"):  # email de contacto exigido pela SEC para o excerto do guidance
         cfg["sec_contacto"] = os.environ["SEC_CONTACTO"].strip()
     return cfg
@@ -171,7 +173,8 @@ def notify(cfg: dict, title: str, message: str, *, tags=None, priority=3,
         payload["click"] = click
     if actions:
         payload["actions"] = [{"action": "view", "label": a["label"], "url": a["url"]} for a in actions]
-    r = requests.post(cfg["ntfy_servidor"].rstrip("/"), json=payload, timeout=20)
+    headers = {"Authorization": f"Bearer {cfg['ntfy_token']}"} if cfg.get("ntfy_token") else {}
+    r = requests.post(cfg["ntfy_servidor"].rstrip("/"), json=payload, headers=headers, timeout=20)
     r.raise_for_status()
 
 

@@ -58,8 +58,11 @@ def main() -> None:
             "title": "⚠️ O bot de resultados parou",
             "message": f"Nenhuma corrida há {idle / 60:.1f} h. Em GitHub → Actions → Bot Resultados, carrega em "
                        "Run workflow para o relançar."}
+    headers = {"Content-Type": "application/json"}
+    if os.environ.get("NTFY_TOKEN", "").strip():  # opcional: tópico protegido por token
+        headers["Authorization"] = f"Bearer {os.environ['NTFY_TOKEN'].strip()}"
     req = urllib.request.Request(cfg.get("ntfy_servidor", "https://ntfy.sh").rstrip("/"), data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers=headers)
     urllib.request.urlopen(req, timeout=20)
     print("aviso enviado")
 

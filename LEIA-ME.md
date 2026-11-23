@@ -27,6 +27,7 @@ Os números do topo medem a estratégia do critério atual: comprar quando chega
 1. Instala **ntfy** (Android: Play Store / iPhone: App Store).
 2. Carrega em **+** e subscreve o tópico que está em `config.local.json` → `ntfy_topico` (este ficheiro fica só no PC).
 3. Mantém o nome do tópico privado: quem o souber consegue ler os avisos.
+4. Opcional, para proteger o tópico com um token: reserva o tópico numa conta do ntfy (plano pago no ntfy.sh, ou um servidor próprio em `ntfy_servidor`), cria um token de acesso e guarda-o no segredo `NTFY_TOKEN` do repositório (e em `config.local.json` → `ntfy_token` no PC). Sem o segredo, o bot funciona como antes.
 
 ## Comandos
 
@@ -111,7 +112,7 @@ O Yahoo só mostra o EPS horas depois do comunicado (nos relatórios depois do f
 
 ## Excerto do guidance
 
-`guidance.py` vai ao comunicado na SEC e copia as frases de previsão para o alerta. A SEC exige um email de contacto real em cada pedido e não aceita o endereço noreply do GitHub. O email fica no segredo `SEC_CONTACTO` do repositório (e em `config.local.json` no PC), nunca no código. Testar em Actions → Diagnóstico do guidance.
+`guidance.py` vai ao comunicado na SEC e copia as frases de previsão para o alerta. Deixa de fora frases sobre o passado: as que só falam de anos que já acabaram e as que descrevem um resultado já conhecido ("revenue was…", "compared with…") sem um verbo de previsão. A SEC exige um email de contacto real em cada pedido e não aceita o endereço noreply do GitHub. O email fica no segredo `SEC_CONTACTO` do repositório (e em `config.local.json` no PC), nunca no código. Testar em Actions → Diagnóstico do guidance.
 
 ## Especificação (PDF)
 
