@@ -307,6 +307,46 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "A|2026-11-23": {
+   "detetado": "2026-11-23T21:07:36.195008+00:00",
+   "entregue": "2026-11-23T16:06:20-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "A",
+    "nome": "Agilent Technologies, Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 49763260470.85855,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 1.73,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
+  },
+  "ZM|2026-11-23": {
+   "detetado": "2026-11-23T21:07:36.195008+00:00",
+   "entregue": "2026-11-23T16:05:46-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "ZM",
+    "nome": "Zoom Communications, Inc.",
+    "mercado": "NASDAQ",
+    "capitalizacao": 25172179768.47146,
+    "quando": "2026-11-23T21:00:00+00:00",
+    "dia": "2026-11-23",
+    "momento": "AMC",
+    "eps_estimado": 1.5,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
