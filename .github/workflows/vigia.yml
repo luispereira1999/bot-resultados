@@ -1,0 +1,24 @@
+name: Vigia do bot
+
+# Avisa no telemóvel se o bot de resultados deixar de correr nos dias úteis (mais de 90 minutos sem
+# corridas). O bot avisa sozinho quando tem erros, mas não quando nem sequer arranca.
+on:
+  schedule:
+    - cron: "20,50 * * * 1-5"   # de 30 em 30 minutos, seg a sex (UTC)
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NTFY_TOPICO: ${{ secrets.NTFY_TOPICO }}
+        run: python3 vigia.py

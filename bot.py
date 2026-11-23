@@ -33,6 +33,7 @@ EURONEXT_FILE = ROOT / "euronext.txt"
 STATE_FILE = DATA / "estado.json"
 LOG_FILE = DATA / "registo.csv"
 ERROR_LOG = DATA / "erros.log"
+SEC_MARK = DATA / "sec_ultimo.txt"  # fora do git: muda a cada passagem
 
 LIS = ZoneInfo("Europe/Lisbon")
 NY = ZoneInfo("America/New_York")
@@ -573,6 +574,59 @@ def positive_entry(r: dict) -> dict:
             "quando": r["quando"], "momento": r["momento"], "surpresa_pct": r["surpresa_pct"]}
 
 
+HEALTH_NAMES = {"bot": "O bot", "sec": "A deteção rápida pela SEC (⚡)"}
+
+
+def track_health(cfg: dict, state: dict, key: str, ok: bool, detail: str, dry: bool) -> None:
+    """Conta passagens seguidas com erro e avisa no telemóvel ao chegar ao limite (e quando recupera).
+
+    Só escreve no estado quando algo muda, para não gerar commits a cada passagem.
+    """
+    health = state.setdefault("saude", {})
+    h = health.get(key, {"falhas": 0, "avisado": False})
+    name = HEALTH_NAMES.get(key, key)
+    limit = int(cfg.get("avisar_falhas_seguidas", 5))
+    if ok:
+        if h.get("avisado"):
+            try:
+                notify(cfg, f"✅ {name} voltou a funcionar", f"Depois de {h['falhas']} passagens seguidas com erros.",
+                       tags=["white_check_mark"], dry=dry)
+            except Exception:
+                log_error("Não consegui avisar a recuperação")
+        if h.get("falhas"):
+            health.pop(key, None)
+    else:
+        h = {**h, "falhas": h.get("falhas", 0) + 1, "erro": detail}
+        if h["falhas"] >= limit and not h.get("avisado"):
+            try:
+                notify(cfg, f"⚠️ {name} está com erros",
+                       f"{h['falhas']} passagens seguidas falharam (cerca de {h['falhas'] * 2} min).\nÚltimo erro: {detail}\n"
+                       "Ver em GitHub → Actions → Bot Resultados.", tags=["warning"], priority=4, dry=dry)
+                h["avisado"] = True
+            except Exception:
+                log_error("Não consegui avisar a falha")
+        health[key] = h
+    if not health:
+        state.pop("saude", None)
+
+
+def read_sec_mark() -> str | None:
+    """Hora da última leitura do feed da SEC.
+
+    Fica num ficheiro fora do git (e não no estado.json) porque muda a cada passagem: no estado, daria um
+    commit de 2 em 2 minutos. Numa corrida nova o ficheiro não existe e o bot relê as últimas 6 horas.
+    """
+    try:
+        return SEC_MARK.read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+
+def write_sec_mark(now: datetime) -> None:
+    DATA.mkdir(exist_ok=True)
+    SEC_MARK.write_text(now.isoformat(), encoding="utf-8")
+
+
 def check_sec(cfg: dict, state: dict, pending: list[dict], now: datetime, dry: bool) -> None:
     """Deteção rápida: o comunicado aparece na SEC minutos depois de sair; o EPS no Yahoo demora horas.
 
@@ -596,7 +650,7 @@ def check_sec(cfg: dict, state: dict, pending: list[dict], now: datetime, dry: b
         if cik:
             by_cik.setdefault(cik, []).append(ev)
     if by_cik:
-        last = state.get("sec_ultimo")
+        last = read_sec_mark()
         # 10 min de folga: uma entrega pode aparecer no feed com a hora de aceitação um pouco antes da leitura
         since = datetime.fromisoformat(last) - timedelta(minutes=10) if last else now - timedelta(hours=6)
         for f in guidance.recent_results(ua, since):
@@ -605,13 +659,13 @@ def check_sec(cfg: dict, state: dict, pending: list[dict], now: datetime, dry: b
                 if key in sec or abs((f["entregue"].astimezone(LIS).date() - date.fromisoformat(ev["dia"])).days) > 1:
                     continue
                 try:
-                    url, text = guidance.release_text(f["cik"], f["accession"], ua)
+                    url, text, page = guidance.release_text(f["cik"], f["accession"], ua)
                 except Exception:  # uma entrega estragada não pode bloquear as outras em todas as passagens
                     log_error(f"SEC: não consegui ler o comunicado de {ev['simbolo']}")
                     sec[key] = {"detetado": now.isoformat(), "entregue": f["entregue"].isoformat(), "url": None,
                                 "eps": None, "frases": [], "evento": ev, "estado": "erro"}
                     continue
-                eps = guidance.eps_from_release(text)
+                eps = guidance.eps_from_release(text) or guidance.eps_from_tables(page)
                 sec[key] = {"detetado": now.isoformat(), "entregue": f["entregue"].isoformat(), "url": url,
                             "eps": eps["eps"] if eps else None, "ajustado": bool(eps and eps["ajustado"]),
                             "frase": eps["frase"] if eps else None,
@@ -619,7 +673,8 @@ def check_sec(cfg: dict, state: dict, pending: list[dict], now: datetime, dry: b
                             "evento": ev, "estado": "a seguir" if eps else "sem EPS"}
                 print(f"SEC: {ev['simbolo']} entregou às {f['entregue'].astimezone(LIS):%H:%M}, "
                       f"EPS {'lido ' + str(eps['eps']) if eps else 'não lido'}")
-    state["sec_ultimo"] = now.isoformat()
+    write_sec_mark(now)
+    state.pop("sec_ultimo", None)  # versões anteriores guardavam-no no estado (um commit por passagem)
 
     # comunicados com EPS lido, ainda sem decisão: alerta se bateu e o preço já reage
     for key, s in sec.items():
@@ -665,8 +720,10 @@ def task_check(cfg: dict, state: dict, now: datetime, dry: bool) -> None:
     pending = [e for e in us if e["eps_real"] is None and e["dia"] >= (today - timedelta(days=1)).isoformat()]
     try:
         check_sec(cfg, state, pending, now, dry)
-    except Exception:  # a deteção rápida é um extra: se falhar, o Yahoo continua a funcionar
+        track_health(cfg, state, "sec", True, "", dry)
+    except Exception as exc:  # a deteção rápida é um extra: se falhar, o Yahoo continua a funcionar
         log_error("Deteção pela SEC falhou")
+        track_health(cfg, state, "sec", False, f"{type(exc).__name__}: {exc}"[:200], dry)
     for ev in refresh_eu(state, today, int(cfg["dias_calendario"])):
         if since.isoformat() <= ev["dia"] <= today.isoformat():
             key = f"{ev['simbolo']}|{ev['dia']}"
@@ -836,6 +893,7 @@ def main() -> None:
             today = now.date().isoformat()
             weekday = now.weekday() < 5
             failed = False
+            failed_names: list[str] = []
 
             def step(name: str, fn, flag: str | None = None) -> None:
                 """Uma tarefa que falha não impede as outras; volta a tentar na próxima corrida."""
@@ -846,6 +904,7 @@ def main() -> None:
                         state[flag] = today
                 except Exception:
                     failed = True
+                    failed_names.append(name)
                     log_error(f"Erro na tarefa {name}")
 
             if weekday and (now.hour, now.minute) >= hhmm(cfg["hora_resumo_manha"]) and state.get("ultimo_resumo_manha") != today:
@@ -860,6 +919,7 @@ def main() -> None:
             # revisão: todas as noites depois do fecho de Nova Iorque, e ao sábado de manhã
             if ((weekday and now.hour >= 22) or now.weekday() == 5) and state.get("ultima_revisao") != today:
                 step("rever", task_review, "ultima_revisao")
+            track_health(cfg, state, "bot", not failed, "tarefas " + ", ".join(failed_names), a.seco)
             if failed:
                 sys.exit(1)
     except Exception:

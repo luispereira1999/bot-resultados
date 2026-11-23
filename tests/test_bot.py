@@ -231,10 +231,11 @@ def sec_env(monkeypatch, tmp_path):
     cfg = {**bot.DEFAULTS, "sec_contacto": "x", "guidance_no_alerta": True}
     ev = {**event(2026, 11, 10, 16, 5), "simbolo": "XYZ", "nome": "XYZ", "mercado": "NASDAQ", "capitalizacao": 5e9,
           "dia": "2026-11-10", "momento": "AMC", "eps_estimado": 1.0, "eps_real": None, "surpresa_pct": None}
+    monkeypatch.setattr(bot, "SEC_MARK", tmp_path / "sec_ultimo.txt")
     monkeypatch.setattr(guidance, "cik_for", lambda s, ua: 1234 if s == "XYZ" else None)
     monkeypatch.setattr(guidance, "recent_results", lambda ua, since: guidance.parse_feed(FEED))
     release = {"texto": "Third quarter adjusted diluted EPS of $1.20. The company expects fiscal 2027 revenue of $5 billion."}
-    monkeypatch.setattr(guidance, "release_text", lambda cik, acc, ua: ("https://sec/x", release["texto"]))
+    monkeypatch.setattr(guidance, "release_text", lambda cik, acc, ua: ("https://sec/x", release["texto"], release.get("html", "")))
     move = {"post": 6.0}
     monkeypatch.setattr(bot.yf, "Ticker", lambda s: FakeTicker(info("POST", ts(2026, 11, 10, 16), post=move["post"])))
     monkeypatch.setattr(bot, "notify", lambda cfg, title, body, **kw: sent.append((title, body)))
@@ -423,3 +424,89 @@ def test_premarket_sem_sessao_no_dia_da_reacao_fica_de_fora():
     ev = {"simbolo": "XYZ", "data": "2026-11-09", "momento": "AMC", "dia_reacao": "2026-11-10", "surpresa_pct": 5.0,
           "capitalizacao": 5e9}
     assert premarket.measure(bars, [ev]) == []
+
+
+# ---------------------------------------------------------------- avisos de falhas
+
+def test_avisa_ao_fim_de_5_falhas_seguidas_e_quando_recupera(monkeypatch):
+    sent = []
+    monkeypatch.setattr(bot, "notify", lambda cfg, title, body, **kw: sent.append(title))
+    cfg, state = dict(bot.DEFAULTS), {}
+    for _ in range(4):
+        bot.track_health(cfg, state, "sec", False, "ConnectionError", dry=False)
+    assert sent == [] and state["saude"]["sec"]["falhas"] == 4
+    bot.track_health(cfg, state, "sec", False, "ConnectionError", dry=False)
+    bot.track_health(cfg, state, "sec", False, "ConnectionError", dry=False)  # não repete o aviso
+    assert len(sent) == 1 and "SEC" in sent[0] and "erros" in sent[0]
+    bot.track_health(cfg, state, "sec", True, "", dry=False)
+    assert len(sent) == 2 and "voltou a funcionar" in sent[1] and "saude" not in state
+
+
+def test_saude_sem_falhas_nao_mexe_no_estado():
+    state = {}
+    bot.track_health(dict(bot.DEFAULTS), state, "bot", True, "", dry=False)
+    assert state == {}  # sem mudanças no estado: sem commits a cada passagem
+
+
+def test_feed_da_sec_nao_fica_no_estado(sec_env, tmp_path, monkeypatch):
+    monkeypatch.setattr(bot, "SEC_MARK", tmp_path / "sec_ultimo.txt")
+    state = {"sec_ultimo": "2026-11-10T20:00:00+00:00"}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    assert "sec_ultimo" not in state and bot.read_sec_mark() == sec_env["now"].isoformat()
+
+
+def test_vigia_avisa_quando_o_bot_para():
+    import vigia
+    from datetime import timezone
+    now = datetime(2026, 11, 24, 10, 20, tzinfo=timezone.utc)  # terça-feira
+    ago = lambda m: (now - pd.Timedelta(minutes=m)).isoformat().replace("+00:00", "Z")
+    assert vigia.minutes_idle([{"status": "in_progress", "updatedAt": ago(300)}], now) is None
+    idle = vigia.minutes_idle([{"status": "completed", "updatedAt": ago(95)}], now)
+    assert round(idle) == 95 and vigia.should_alert(idle, now)
+    assert not vigia.should_alert(vigia.minutes_idle([{"status": "completed", "updatedAt": ago(60)}], now), now)
+    assert not vigia.should_alert(vigia.minutes_idle([{"status": "completed", "updatedAt": ago(400)}], now), now)  # já avisou
+    assert vigia.should_alert(400, datetime(2026, 11, 24, 13, 20, tzinfo=timezone.utc))  # lembrete às 13:00 UTC
+
+
+def test_vigia_a_segunda_conta_desde_o_arranque_esperado():
+    import vigia
+    from datetime import timezone
+    monday = datetime(2026, 11, 23, 1, 50, tzinfo=timezone.utc)
+    friday_run = [{"status": "completed", "updatedAt": "2026-11-21T01:30:00Z"}]  # última corrida no sábado de madrugada
+    idle = vigia.minutes_idle(friday_run, monday)
+    assert round(idle) == 105 and vigia.should_alert(idle, monday)
+
+
+TABELA = """<table><tr><td>Three Months Ended September 30</td><td>2026</td><td>2025</td></tr>
+<tr><td>Revenue</td><td>$</td><td>1,200</td><td>$</td><td>1,050</td></tr>
+<tr><td>Adjusted diluted EPS (1)</td><td>$</td><td>1.32</td><td>$</td><td>1.10</td></tr>
+<tr><td>Diluted EPS</td><td>$</td><td>1.05</td><td>$</td><td>0.98</td></tr>
+<tr><td>Net loss per share – diluted</td><td>(0.15</td><td>)</td><td>(0.20</td><td>)</td></tr></table>"""
+
+
+def test_eps_das_tabelas_usa_o_ajustado_do_trimestre():
+    import guidance
+    r = guidance.eps_from_tables(TABELA)
+    assert r["eps"] == 1.32 and r["ajustado"]
+    sem_ajustado = TABELA.replace("Adjusted diluted EPS (1)", "Revenue per employee")
+    assert guidance.eps_from_tables(sem_ajustado)["eps"] == 1.05
+
+
+@pytest.mark.parametrize("tabela", [
+    "<table><tr><td>Fiscal 2027 Outlook</td></tr><tr><td>Adjusted EPS</td><td>$2.20</td><td>$2.30</td></tr></table>",  # previsão
+    "<table><tr><td>Adjusted EPS</td><td>$2.23</td><td>+20% — +25%</td></tr></table>",                                  # intervalo
+    "<table><tr><td>Nine Months Ended</td></tr><tr><td>Diluted EPS</td><td>4.15</td></tr></table>",                       # só 9 meses
+    "<table><tr><td>Basic earnings per share</td><td>0.40</td></tr></table>",                                             # só básico
+    "<table><tr><td>Diluted earnings per share</td><td>7.8532</td></tr></table>",                                         # 4 casas
+    "<table><tr><td>Dividends per share</td><td>0.25</td></tr></table>",                                                  # dividendo
+])
+def test_eps_das_tabelas_ignora_previsoes_e_outros_valores(tabela):
+    import guidance
+    assert guidance.eps_from_tables(tabela) is None
+
+
+def test_antecipado_le_o_eps_da_tabela_quando_o_texto_nao_chega(sec_env):
+    sec_env["release"].update(texto="Revenue grew 12% to $1.2 billion.", html=TABELA)
+    state = {}
+    bot.task_check(sec_env["cfg"], state, sec_env["now"], dry=False)
+    assert state["sec"]["XYZ|2026-11-10"]["eps"] == 1.32

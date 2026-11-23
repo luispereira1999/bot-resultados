@@ -6,3 +6,4 @@ data/erros.log
 data/*.tmp
 .claude/
 data/sec_tickers.json
+data/sec_ultimo.txt
