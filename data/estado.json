@@ -680,6 +680,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "SJM|2026-11-24": {
+   "detetado": "2026-11-24T12:07:32.649743+00:00",
+   "entregue": "2026-11-24T07:04:40-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "SJM",
+    "nome": "The J. M. Smucker Company",
+    "mercado": "NYSE",
+    "capitalizacao": 14183982108.340607,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 2.56,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
