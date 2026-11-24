@@ -640,6 +640,46 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "DY|2026-11-24": {
+   "detetado": "2026-11-24T12:05:29.168522+00:00",
+   "entregue": "2026-11-24T07:03:52-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "DY",
+    "nome": "Dycom Industries, Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 6586248032.819702,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 4.57,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
+  },
+  "ADI|2026-11-24": {
+   "detetado": "2026-11-24T12:05:29.168522+00:00",
+   "entregue": "2026-11-24T07:03:22-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "ADI",
+    "nome": "Analog Devices, Inc.",
+    "mercado": "NASDAQ",
+    "capitalizacao": 183529169868.75,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 3.88,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
