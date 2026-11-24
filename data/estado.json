@@ -480,6 +480,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "BWLP|2026-11-24": {
+   "detetado": "2026-11-24T11:07:34.286154+00:00",
+   "entregue": "2026-11-24T06:03:10-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "BWLP",
+    "nome": "BW LPG Limited",
+    "mercado": "NYSE",
+    "capitalizacao": 3373320396.637184,
+    "quando": "2026-11-24T21:00:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "AMC",
+    "eps_estimado": 1.86,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
