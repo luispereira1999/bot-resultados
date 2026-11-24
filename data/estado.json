@@ -81,7 +81,8 @@
   "HPE|2026-11-23": "2026-11-24T01:34:52.372270+00:00",
   "SYM|2026-11-23": "2026-11-24T01:34:52.372270+00:00",
   "CENT|2026-11-23": "2026-11-24T01:34:52.372270+00:00",
-  "CENTA|2026-11-23": "2026-11-24T01:34:52.372270+00:00"
+  "CENTA|2026-11-23": "2026-11-24T01:34:52.372270+00:00",
+  "DAC|2026-11-23": "2026-11-24T02:22:37.263120+00:00"
  },
  "positivos": {
   "HTHT|2026-11-16": {
@@ -238,6 +239,19 @@
    "surpresa_pct": 31.59,
    "alerta_em": "2026-11-24T01:34:52.372270+00:00",
    "movimento_alerta_pct": -1.8995564,
+   "tipo_alerta": "after-hours",
+   "antecipado": false
+  },
+  "DAC|2026-11-23": {
+   "simbolo": "DAC",
+   "nome": "Danaos Corporation",
+   "mercado": "NYSE",
+   "dia": "2026-11-23",
+   "quando": "2026-11-23T21:30:00+00:00",
+   "momento": "AMC",
+   "surpresa_pct": 36.54,
+   "alerta_em": "2026-11-24T02:22:37.263120+00:00",
+   "movimento_alerta_pct": 0.0,
    "tipo_alerta": "after-hours",
    "antecipado": false
   }
