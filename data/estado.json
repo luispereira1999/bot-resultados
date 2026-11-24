@@ -580,6 +580,46 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "BBY|2026-11-24": {
+   "detetado": "2026-11-24T12:01:17.881470+00:00",
+   "entregue": "2026-11-24T07:00:31-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "BBY",
+    "nome": "Best Buy Co., Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 20343586706.0,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 1.49,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
+  },
+  "KSS|2026-11-24": {
+   "detetado": "2026-11-24T12:01:17.881470+00:00",
+   "entregue": "2026-11-24T07:00:10-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "KSS",
+    "nome": "Kohl's Corporation",
+    "mercado": "NYSE",
+    "capitalizacao": 2403580720.499363,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": -0.16,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
