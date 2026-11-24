@@ -822,6 +822,30 @@
     "surpresa_pct": null
    },
    "estado": "não bateu"
+  },
+  "ADSK|2026-11-24": {
+   "detetado": "2026-11-24T21:07:13.729550+00:00",
+   "entregue": "2026-11-24T16:05:29-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/769397/000076939726000069/q327pressrelease.htm",
+   "eps": 3.2,
+   "ajustado": true,
+   "frase": "Non-GAAP EPS 3.20 $0.53",
+   "frases": [
+    "Q4 FY27 GAAP income taxes are expected to include a discrete benefit of approximately $163 million from the release of certain tax reserves."
+   ],
+   "evento": {
+    "simbolo": "ADSK",
+    "nome": "Autodesk, Inc.",
+    "mercado": "NASDAQ",
+    "capitalizacao": 53441299362.18262,
+    "quando": "2026-11-24T21:00:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "AMC",
+    "eps_estimado": 3.07,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "não bateu"
   }
  }
 }
