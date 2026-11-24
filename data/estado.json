@@ -752,6 +752,28 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "GGAL|2026-11-24": {
+   "detetado": "2026-11-24T15:27:47.671086+00:00",
+   "entregue": "2026-11-24T10:27:04-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/1114700/000111470026000087/pressreleasegrupogalicia.htm",
+   "eps": null,
+   "ajustado": false,
+   "frase": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "GGAL",
+    "nome": "Grupo Financiero Galicia S.A.",
+    "mercado": "NASDAQ",
+    "capitalizacao": 4449000056.264009,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 1.22,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "sem EPS"
   }
  }
 }
