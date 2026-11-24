@@ -720,6 +720,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "MMED|2026-11-24": {
+   "detetado": "2026-11-24T12:55:08.602376+00:00",
+   "entregue": "2026-11-24T07:54:11-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "MMED",
+    "nome": "MiniMed Group, Inc.",
+    "mercado": "NASDAQ",
+    "capitalizacao": 4702764139.5955925,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 0.11,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
