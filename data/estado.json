@@ -520,6 +520,46 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "MDT|2026-11-24": {
+   "detetado": "2026-11-24T11:32:39.578579+00:00",
+   "entregue": "2026-11-24T06:32:02-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "MDT",
+    "nome": "Medtronic plc",
+    "mercado": "NYSE",
+    "capitalizacao": 128834769842.24762,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 1.33,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
+  },
+  "DLTR|2026-11-24": {
+   "detetado": "2026-11-24T11:32:39.578579+00:00",
+   "entregue": "2026-11-24T06:30:42-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "DLTR",
+    "nome": "Dollar Tree, Inc.",
+    "mercado": "NASDAQ",
+    "capitalizacao": 26099375736.10446,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 1.08,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
