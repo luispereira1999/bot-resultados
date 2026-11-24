@@ -888,6 +888,32 @@
    "surpresa_pct": 27.46585735963582,
    "movimento_pct": 0.5817564,
    "alertado_em": "2026-11-24T21:11:25.318354+00:00"
+  },
+  "HPQ|2026-11-24": {
+   "detetado": "2026-11-24T21:19:44.164109+00:00",
+   "entregue": "2026-11-24T16:17:57-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/47217/000004721726000054/hp103126exhibit991q426.htm",
+   "eps": 0.83,
+   "ajustado": true,
+   "frase": "Fourth quarter non-GAAP diluted net EPS of $0.83",
+   "frases": [
+    "Fiscal 2026 GAAP diluted net EPS was $2.62, down from $2.65 in the prior-year and within the previously provided outlook of $2.52 to $2.62.",
+    "Fiscal 2026 non-GAAP diluted net EPS was $3.33, up from $3.12 in the prior-year and above the previously provided outlook of $3.19 to $3.29.",
+    "Fourth quarter GAAP diluted net EPS was $0.84, flat from $0.84 in the prior-year period and within the previously provided outlook of $0.74 to $0.84."
+   ],
+   "evento": {
+    "simbolo": "HPQ",
+    "nome": "HP Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 25182512121.31309,
+    "quando": "2026-11-24T21:00:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "AMC",
+    "eps_estimado": 0.74,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "a seguir"
   }
  }
 }
