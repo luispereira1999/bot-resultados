@@ -560,6 +560,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "BURL|2026-11-24": {
+   "detetado": "2026-11-24T11:51:05.613619+00:00",
+   "entregue": "2026-11-24T06:49:27-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "BURL",
+    "nome": "Burlington Stores, Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 14771621486.236115,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 1.64,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
