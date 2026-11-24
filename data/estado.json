@@ -269,6 +269,19 @@
    "movimento_alerta_pct": 0.0,
    "tipo_alerta": "after-hours",
    "antecipado": false
+  },
+  "DELL|2026-11-24": {
+   "simbolo": "DELL",
+   "nome": "Dell Technologies Inc.",
+   "mercado": "NYSE",
+   "dia": "2026-11-24",
+   "quando": "2026-11-24T21:00:00+00:00",
+   "momento": "AMC",
+   "surpresa_pct": 27.46585735963582,
+   "alerta_em": "2026-11-24T21:11:25.318354+00:00",
+   "movimento_alerta_pct": 0.5817564,
+   "tipo_alerta": "after-hours",
+   "antecipado": true
   }
  },
  "eu_eventos": [
@@ -846,6 +859,35 @@
     "surpresa_pct": null
    },
    "estado": "não bateu"
+  },
+  "DELL|2026-11-24": {
+   "detetado": "2026-11-24T21:11:25.318354+00:00",
+   "entregue": "2026-11-24T16:09:13-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/1571996/000157199626000050/exhibit991earnings8kq3fy27.htm",
+   "eps": 8.4,
+   "ajustado": true,
+   "frase": "Non-GAAP diluted EPS 8.40 116 %",
+   "frases": [
+    "Full-year FY27 revenue guidance of $202.0 billion, up 78% year over year",
+    "Full-year FY27 diluted EPS guidance of $28.24 and non-GAAP diluted EPS guidance of $29.68, up 225% and 188% year over year, respectively",
+    "“We expect record full-year revenue of $202 billion , up 78%."
+   ],
+   "evento": {
+    "simbolo": "DELL",
+    "nome": "Dell Technologies Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 187469393218.19305,
+    "quando": "2026-11-24T21:00:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "AMC",
+    "eps_estimado": 6.59,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "alertado",
+   "surpresa_pct": 27.46585735963582,
+   "movimento_pct": 0.5817564,
+   "alertado_em": "2026-11-24T21:11:25.318354+00:00"
   }
  }
 }
