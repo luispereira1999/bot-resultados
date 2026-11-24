@@ -620,6 +620,26 @@
     "surpresa_pct": null
    },
    "estado": "erro"
+  },
+  "DKS|2026-11-24": {
+   "detetado": "2026-11-24T12:03:26.094922+00:00",
+   "entregue": "2026-11-24T07:02:02-05:00",
+   "url": null,
+   "eps": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "DKS",
+    "nome": "DICK'S Sporting Goods, Inc.",
+    "mercado": "NYSE",
+    "capitalizacao": 11886812577.690613,
+    "quando": "2026-11-24T13:30:00+00:00",
+    "dia": "2026-11-24",
+    "momento": "BMO",
+    "eps_estimado": 2.71,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "erro"
   }
  }
 }
