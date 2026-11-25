@@ -955,12 +955,5 @@
    },
    "estado": "sem EPS"
   }
- },
- "saude": {
-  "sec": {
-   "falhas": 1,
-   "avisado": false,
-   "erro": "ReadTimeout: HTTPSConnectionPool(host='www.sec.gov', port=443): Read timed out. (read timeout=30)"
-  }
  }
 }
