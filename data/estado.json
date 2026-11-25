@@ -983,6 +983,28 @@
     "surpresa_pct": null
    },
    "estado": "não bateu"
+  },
+  "BZ|2026-11-25": {
+   "detetado": "2026-11-25T11:38:46.835361+00:00",
+   "entregue": "2026-11-25T06:36:39-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/1842827/000110465926131805/tm2630442d1_ex99-1.htm",
+   "eps": 2.13,
+   "ajustado": true,
+   "frase": "(US$0.35), respectively, compared with adjusted basic and diluted net income per ADS of RMB2.13",
+   "frases": [],
+   "evento": {
+    "simbolo": "BZ",
+    "nome": "Kanzhun Limited",
+    "mercado": "NASDAQ",
+    "capitalizacao": 5573822645.26289,
+    "quando": "2026-11-25T13:30:00+00:00",
+    "dia": "2026-11-25",
+    "momento": "BMO",
+    "eps_estimado": 2.24,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "não bateu"
   }
  }
 }
