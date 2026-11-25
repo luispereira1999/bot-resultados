@@ -932,6 +932,28 @@
    "surpresa_pct": 12.162162162162158,
    "movimento_pct": -0.60844696,
    "alertado_em": "2026-11-24T21:40:08.137932+00:00"
+  },
+  "BMA|2026-11-25": {
+   "detetado": "2026-11-25T00:25:49.746453+00:00",
+   "entregue": "2026-11-24T16:58:02-05:00",
+   "url": "https://www.sec.gov/Archives/edgar/data/1347426/000110465926131670/tm2630618d1_6k.htm",
+   "eps": null,
+   "ajustado": false,
+   "frase": null,
+   "frases": [],
+   "evento": {
+    "simbolo": "BMA",
+    "nome": "Banco Macro S.A.",
+    "mercado": "NYSE",
+    "capitalizacao": 3202706022.4563217,
+    "quando": "2026-11-25T21:00:00+00:00",
+    "dia": "2026-11-25",
+    "momento": "AMC",
+    "eps_estimado": 2529.28,
+    "eps_real": null,
+    "surpresa_pct": null
+   },
+   "estado": "sem EPS"
   }
  }
 }
