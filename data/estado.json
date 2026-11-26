@@ -320,21 +320,8 @@
    "antecipado": false
   }
  },
- "eu_eventos": [
-  {
-   "simbolo": "PRX.AS",
-   "nome": "PRX.AS",
-   "mercado": "Euronext",
-   "capitalizacao": null,
-   "quando": "2026-11-25T16:00:00+00:00",
-   "dia": "2026-11-25",
-   "momento": "TNS",
-   "eps_estimado": null,
-   "eps_real": null,
-   "surpresa_pct": null
-  }
- ],
- "eu_atualizado": "2026-11-25",
+ "eu_eventos": [],
+ "eu_atualizado": "2026-11-26",
  "ultimo_resumo_manha": "2026-11-25",
  "ultimo_resumo_premarket": "2026-11-25",
  "ultima_revisao": "2026-11-25",
